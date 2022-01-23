@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+Created on Fri Dec 25 11:13:32 2020
 
+@author: mats_j
+"""
 
 import os
 import numpy as np
@@ -15,12 +19,12 @@ import sklearn.model_selection
 from sklearn.decomposition import PCA
 from sklearn.cross_decomposition import PLSRegression
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 
 def sumsq(A):
-    squares = np.asarray(A)**2
-    return np.sum(squares)
+    squares = np.asarray(A, dtype=np.float64)**2
+    return np.sum(squares, axis=0)
 
 def reset_too_high_max_comp(max_comp, X):
     """ Should be degrees_of_freedom(X), -1 for mean centering and -1 
@@ -39,8 +43,9 @@ def R2(M, X, y_ref0):
         print('R2 X', type(X), X.shape)
         print('R2 y_ref', type(y_ref), y_ref.shape)
         print('R2 y_pred', type(y_pred), y_pred.shape)
-    u = sumsq(y_ref - y_pred)
-    v = sumsq(y_ref - y_ref.mean())
+    """ Get the sum of the sum of squares from each y-variable """
+    u = np.sum(sumsq(y_ref - y_pred)) 
+    v = np.sum(sumsq(y_ref - y_ref.mean(axis=0)))
     if trace:
         print('R2 u', type(u), u.shape, u)
         print('R2 v', type(v), v.shape, v)
@@ -63,22 +68,28 @@ def PLS_R2_calc(X, Y, max_comp=10, is_UV_scale=False):
 
 def Q2(CV_pred, y_ref0):
     trace = False
-    y_ref = np.atleast_2d(y_ref0)
-    #y_pred = np.squeeze(CV_pred) # keep ndim=2 to match incoming y_ref
+    if y_ref0.ndim == 1:
+        y_ref = y_ref0[:, np.newaxis]
+    else:
+        y_ref = y_ref0
     y_pred = CV_pred
-    PRESS = sumsq(y_ref - y_pred)
-    SSY = sumsq(y_ref - y_ref.mean(axis=0))
+    """ Get the sum of the sum of squares from each y-variable """
+    PRESS = np.sum(sumsq(y_ref - y_pred)) 
+    SSY = np.sum(sumsq(y_ref - y_ref.mean(axis=0)))
     if trace:
+        print('y_ref', type(y_ref), y_ref.ndim, y_ref.shape)# , y_ref)
+        print('y_pred', type(y_pred), y_pred.ndim, y_pred.shape)#, y_pred)
+        print('y_ref.mean(axis=0)', y_ref.mean(axis=0))
+        print('y_pred.mean(axis=0)', y_pred.mean(axis=0))
         print('PRESS', PRESS, type(PRESS))
-        print('y_ref', y_ref, type(y_ref), y_ref.ndim)
-        print('y_pred', y_pred, type(y_pred), y_pred.ndim)
-        print('y_ref.mean(axis=0)',y_ref.mean(axis=0))
         print('SSY',SSY, type(SSY))
     Q2_calc = 1-PRESS/SSY
+    if trace:
+        print('Q2_calc', Q2_calc)
     return Q2_calc 
     
     
-def PLS_cross_val(X, Y, max_comp=10, is_UV_scale=False, CV_sections=7):
+def PLS_cross_val(X, Y, max_comp=10, is_UV_scale=False, CV_sections=7, shuffle=False, random_state=None):
 
     max_comp = reset_too_high_max_comp(max_comp, X)
     
@@ -89,7 +100,9 @@ def PLS_cross_val(X, Y, max_comp=10, is_UV_scale=False, CV_sections=7):
 
     for comps in range(max_comp):
         pls_CV_model = PLS_model(n_components=comps+1, scale=is_UV_scale)
-        CV_selections = sklearn.model_selection.KFold(n_splits=CV_sections)
+        CV_selections = sklearn.model_selection.KFold(n_splits=CV_sections, 
+                                                      shuffle=shuffle, 
+                                                      random_state=random_state)
         """
         # cross_val_predict returns an array of the same size as `y` where each entry
         # is a prediction obtained by cross validation:
@@ -101,16 +114,20 @@ def PLS_cross_val(X, Y, max_comp=10, is_UV_scale=False, CV_sections=7):
     return cumulative_Q2_values
 
 
-def evalPLS_Q2(X, Y, max_comp=10, is_UV_scale=False, CV_sections=7, is_plot=True, plt_fname='', plt_dir=''):
+def evalPLS_Q2(X, Y, max_comp=10, is_UV_scale=False, 
+               CV_sections=7, shuffle=False, random_state=None, 
+               is_plot=True, plt_fname='', plt_dir=''):
     trace = False
-    Xa = np.asarray(X)
-    Ya = np.asarray(Y)
+    Xa = np.asarray(X, dtype=np.float64)
+    Ya = np.asarray(Y, dtype=np.float64)
     max_comp = reset_too_high_max_comp(max_comp, Xa)
     R2_calc = PLS_R2_calc(Xa, Ya, max_comp=max_comp, is_UV_scale=is_UV_scale)
     if trace:
         print('R2', R2_calc.shape)
         print(R2_calc)
-    Q2_calc = PLS_cross_val( Xa, Ya, max_comp=max_comp, is_UV_scale=is_UV_scale, CV_sections=CV_sections)
+    Q2_calc = PLS_cross_val(Xa, Ya,max_comp=max_comp, is_UV_scale=is_UV_scale, 
+                            CV_sections=CV_sections, shuffle=shuffle, 
+                            random_state=random_state)
     if trace:
         print('Q2', Q2_calc.shape)
         print(Q2_calc)
@@ -127,11 +144,11 @@ def evalPLS_Q2(X, Y, max_comp=10, is_UV_scale=False, CV_sections=7, is_plot=True
 
 def mk_oneDimArray(values):
     if (values.size == 1) and (values.ndim == 2):
-        valArr = np.asarray(values[0,0])   
+        valArr = np.asarray(values[0,0], dtype=np.float64)   
     elif values.ndim > 1:
         valArr = np.squeeze(np.asarray(values))
     else:
-        valArr = np.asarray(values)
+        valArr = np.asarray(values, dtype=np.float64)
     return valArr
         
         
@@ -169,6 +186,10 @@ class Fig():
     def close(self):
         plt.close(self.figure)
         
+    def show(self):
+        """Shows plots of all defined plot objects"""
+        plt.show()
+        
     def legend(self, labels='', row=0, col=0, **kwargs):
         if labels:
             self.axes[row, col].legend(labels, **kwargs)
@@ -204,8 +225,8 @@ class Fig():
                     
     def R2_Q2_bars(self, R2_in, Q2_in, width=0.35, row=0, col=0, **kwargs):
         self.set_default_kwargs(kwargs, exclude_args=['markersize', 'markeredgecolor'])
-        R2 = np.atleast_1d(np.squeeze(np.asarray(R2_in)))
-        Q2 = np.atleast_1d(np.squeeze(np.asarray(Q2_in)))
+        R2 = np.atleast_1d(np.squeeze(np.asarray(R2_in, dtype=np.float64)))
+        Q2 = np.atleast_1d(np.squeeze(np.asarray(Q2_in, dtype=np.float64)))
         bar_ix = np.arange(R2.shape[0])+1
 #        cmap = plt.get_cmap("tab10")
 #        R2_color = cmap(2)
@@ -344,25 +365,30 @@ def PCA_by_randomizedSVD(X, components):
 
 
 class PCA_model(PCA):
-    def __init__(self, n_components=None, scale=False):
+    def __init__(self, n_components=None, center=True, scale=False):
         super().__init__(n_components=n_components)
         
         self.n_components = n_components
-        self.scale = scale
+        self.is_center = center
+        self.is_scale = scale
         self.Xavg_ = np.asarray([])
         self.Xws_  = np.asarray([])
-        self.X_model = None   
+        self.X_model = np.asarray([])   
 
     
-    def center_scale_x(self, X, scale=False):
+    def center_scale_x(self, X, center=True, scale=False):
         """ Center X and scale if the scale parameter==True
         Returns
         -------
             X, x_mean, x_std
         """
         # center
-        x_mean = X.mean(axis=0)
-        Xcs = X-x_mean
+        if center:
+            x_mean = X.mean(axis=0)
+            Xcs = X-x_mean
+        else:
+            Xcs = X
+            x_mean = np.zeros(Xcs.shape[1])
         # scale
         if scale:
             x_std = Xcs.std(axis=0, ddof=1)
@@ -375,11 +401,10 @@ class PCA_model(PCA):
 
     def fit(self, X0):
 
-        X, self.Xavg_, self.Xws_ = self.center_scale_x(X0, self.scale)
-        self.X_model = X
-
-        super().fit(self.wkset_X)
+        X, self.Xavg_, self.Xws_ = self.center_scale_x(X0, center=self.is_center, scale=self.is_scale)
+        super().fit(X)
         
+        self.X_model = np.asarray(X, dtype=np.float64)
 
         
     @property    
@@ -392,16 +417,11 @@ class PCA_model(PCA):
     
     @property    
     def T(self):
-        return self.transform(self.wkset_X)
+        return self.transform(self.X_model)
     
     @property    
     def P(self):
         return self.components_
-    
-    @property
-    def wkset_X(self):
-        model_x = self.X_model.copy()
-        return model_x
 
 
 
@@ -419,16 +439,16 @@ class PLS_model(PLSRegression):
         self.n_components = n_components
         self.is_MeanCentered = True #Always True with standard sklearn PLSRegression
         self.scale = scale
-        self.X_model = None
-        self.Y_model = None
+        self.X_model = np.asarray([])
+        self.Y_model = np.asarray([])
         self.SSX_ = np.asarray([])
         self.S2X_ = np.asarray([])
         self.is_fitted = False
  
         
     def fit(self, X, Y):
-        self.X_model = X
-        self.Y_model = Y        
+        self.X_model = np.asarray(X, dtype=np.float64)
+        self.Y_model = np.asarray(Y, dtype=np.float64)        
         super().fit(self.wkset_X, self.wkset_Y)
         
         self.SSX_ = np.asarray([])
@@ -489,6 +509,8 @@ class PLS_model(PLSRegression):
     def U(self):
         if self.is_fitted:
             return self.y_scores_ 
+        else:
+            self.not_fitted_msg()
     
     @property    
     def SSX(self):
@@ -556,7 +578,6 @@ class PLS_model(PLSRegression):
     def get_model_SSX_S2X(self, X_model, Y_model, n_components, is_UVscaled=False, is_MeanCentered=True):
         model_S2X = np.zeros((n_components+1))
         model_SSX = np.zeros((n_components+1))
-#        preTreated_X, _ = np.asarray(self.CenterAndScale(X_model, self.Xws, self.Xavg))
         preTreated_X, preTreated_Y, x_mean, y_mean, x_std, y_std = self.center_scale_xy(X_model, Y_model, is_UVscaled)
         model_S2X[0] = np.nanvar(preTreated_X, ddof=1)
         model_SSX[0] = np.nansum(preTreated_X**2)
@@ -571,14 +592,13 @@ class PLS_model(PLSRegression):
             E = X_model - X_reconstructed
                 
             model_S2X[comp+1] = np.nanvar(E, ddof=comp+1+A0)
-            model_SSX[comp+1] = np.nansum(np.asarray(E)**2)
+            model_SSX[comp+1] = np.nansum(E**2)
         
         return model_SSX, model_S2X
     
     def get_model_pooled_SD(self, A):
         A0 = int(self.is_MeanCentered)
         N, K = self.wkset_X.shape
-#        model_SSX = self.SSX[A]
         model_degs_of_freedom = (N-A-A0)*(K-A)
         model_pooled_SD = np.sqrt(self.SSX[A]/model_degs_of_freedom)
         return model_pooled_SD
@@ -590,6 +610,9 @@ class PLS_model(PLSRegression):
         E:            full matrix of residuals from prediction
         
         Keyword arguments:
+        is_normalized_residual: if true, the residual is relative to the 
+                                model data variation
+                                
         n_components: the number of components to be used in the
                       calculation, a negative number gives the default
                       number of components for the model        
@@ -641,14 +664,18 @@ class PLS_model(PLSRegression):
     
     def Epred(self, X_pred_set):
         if self.is_fitted:
-            return X_pred_set - self.inverse_transform(self.Tpred(X_pred_set))
+#            tp = self.Tpred(X_pred_set) @ self.x_loadings_.T
+#            return X_pred_set - tp
+            X_pred_set_a = np.asarray(X_pred_set, dtype=np.float64)
+            return X_pred_set_a - self.inverse_transform(self.Tpred(X_pred_set_a))
         else:
             self.not_fitted_msg()
     
-    def DModXpred(self, X_pred_set):
+    def DModXpred(self, X_pred_set, is_normalized_residual=True):
         if self.is_fitted:            
-            E = self.Epred( X_pred_set)
-            Obs_resid = self.Obs_residual_SD(E)
+            X_pred_set_a = np.asarray(X_pred_set, dtype=np.float64)
+            E = self.Epred( X_pred_set_a)
+            Obs_resid = self.Obs_residual_SD(E, is_normalized_residual=is_normalized_residual)
             return Obs_resid
         else:
             self.not_fitted_msg()
@@ -656,7 +683,7 @@ class PLS_model(PLSRegression):
         
     def VarResXpred(self, X_pred_set):
         if self.is_fitted:
-            return self.Var_residual_SD(self.Epred(np.asarray(X_pred_set)))
+            return self.Var_residual_SD(self.Epred(X_pred_set))
         else:
             self.not_fitted_msg()
         
@@ -702,12 +729,14 @@ class yo_PLS_model(sklearn.base.BaseEstimator):
 
                         
     def fit(self, X0, Y0):
-        assert np.squeeze(np.asarray(Y0)).ndim == 1, "This implemetation of YO-PLS only handles one Y-variable"
+        Y_arr = np.squeeze(np.asarray(Y0))
+        assert Y_arr.ndim == 1, "This implemetation of YO-PLS only handles one Y-variable"
+       
         X, self.Xavg_, self.Xws_ = self.center_scale(X0, self.is_scaled)
-        Y, self.Yavg_, self.Yws_ = self.center_scale(Y0, self.is_scaled)
+        Y, self.Yavg_, self.Yws_ = self.center_scale(Y_arr[:, np.newaxis], self.is_scaled)
         
-        self.X_model = np.asarray(X)
-        self.Y_model = np.asarray(Y)       
+        self.X_model = np.asarray(X, dtype=np.float64)
+        self.Y_model = np.asarray(Y, dtype=np.float64)       
         self.yorth_PLS1(self.n_components)
                
         
@@ -767,18 +796,6 @@ class yo_PLS_model(sklearn.base.BaseEstimator):
                 print('p_trace', v.ndim, 'number of ndims not handled')
     
     
-    def center(self, X0):
-        if X0.ndim == 1:
-            X = np.mat(X0).T
-        else:
-            X = X0        
-        centrum = np.mat(X.mean(axis=0))
-        one_col = np.mat(np.ones_like(X[:,0]))
-    #    print('center', one_col.shape, centrum.shape, X.shape)
-        centered = X - np.outer(one_col,centrum)
-        return centered, centrum
-
-
     def PLS1comp(self, X, y):
         trace=False
         
@@ -838,28 +855,13 @@ class yo_PLS_model(sklearn.base.BaseEstimator):
     
     
     def mat_to_1Dvec(self, v):
-        return np.squeeze(np.asarray(v))
+        return np.squeeze(np.asarray(v, dtype=np.float64))
 
         
     def yorth_PLS1(self, n_components):
-        
-#        if is_centered:
-#            Xin, self.yorth_Xavg = self.center(self.X_model)
-#            y_in, self.yorth_y_avg = self.center(self.Y_model)
-#        else:
-#            Xin = self.X
-#            if self.y.ndim == 1:
-#                y_in = self.y[:, np.newaxis]
-#            else:
-#                y_in = self.y
-#        self.Xws_ = np.ones((self.X_model.shape[0]))
-#        self.Yws_ = np.ones((1)) #as this is PLS1
-        
+               
         Xin = np.mat(self.X_model)
-#        if self.Y_model.ndim == 1:
-#            y_in = self.Y_model[:, np.newaxis]
-#        else:
-#            y_in = self.Y_model
+
         if self.Y_model.ndim == 1:
             y_in = np.mat(self.Y_model).T
         else:
