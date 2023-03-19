@@ -19,7 +19,7 @@ One purpose with this code is to name the output loading and score vectors consi
 ### Dependencies
 
 * Pandas and scikit-learn
-* Have been tried in Kubuntu 20.04 with Python 3.8 and Windows 10 with Python 3.8 and 3.9, a requirements.txt file exists for the Python 3.9 case.
+* Have been tried in Kubuntu 20.04 with Python 3.8, Kubuntu 22.04 with Python 3.10, and Windows 10 with Python 3.8 and 3.9, a requirements.txt file exists for the Python 3.9-3.10 case.
 
 ### Installing
 
