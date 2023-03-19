@@ -19,7 +19,7 @@ import sklearn.model_selection
 from sklearn.decomposition import PCA
 from sklearn.cross_decomposition import PLSRegression
 
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 
 
 def sumsq(A):
@@ -37,7 +37,10 @@ def reset_too_high_max_comp(max_comp, X):
 
 def R2(M, X, y_ref0):
     trace = False
-    y_ref = np.atleast_2d(y_ref0)
+    if y_ref0.ndim == 1:
+        y_ref = y_ref0[:, np.newaxis]
+    else:
+        y_ref = y_ref0
     y_pred = M.predict(X)
     if trace:
         print('R2 X', type(X), X.shape)
@@ -365,12 +368,12 @@ def PCA_by_randomizedSVD(X, components):
 
 
 class PCA_model(PCA):
-    def __init__(self, n_components=None, center=True, scale=False):
+    def __init__(self, n_components=None, is_center=True, is_scale=False):
         super().__init__(n_components=n_components)
         
         self.n_components = n_components
-        self.is_center = center
-        self.is_scale = scale
+        self.is_center = is_center
+        self.is_scale = is_scale
         self.Xavg_ = np.asarray([])
         self.Xws_  = np.asarray([])
         self.X_model = np.asarray([])   
