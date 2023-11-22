@@ -15,11 +15,11 @@ One purpose with this code is to name the output loading and score vectors consi
 
 - "YO-PLS_with_pandas_output.ipynb" Another PLS part put separately to yield a shorter example.
 
-- "MVDA_exploration_tools.py" A python module containing classes based on scikit-learn that provides traditional chemometrics naming conventions for scores and loading vectors from PCA and PLS modelling.  A class named Fig based on matplotlib is also present to plot of modelling results.
+- "MVDA_exploration_tools.py" A python module containing classes based on scikit-learn that provides traditional chemometrics naming conventions for scores and loading vectors from PCA and PLS modelling.  A class named Fig based on matplotlib is also present to plot modelling results.
 
 - "data/original_spectra.xlsx" contains spectra in the ultra-violett range 250-450 nm with 2 spectral components varied in an experimental design together with concentration values for the training data for optimal modelling with few observations.
 
-- "data/decimated_spectra.xlsx" is the same spectra heavily decimated on the spectral axis in order to facilitate viewing as tables in the above jupyter notebook
+- "data/decimated_spectra.xlsx" is the same spectra heavily decimated on the spectral axis in order to facilitate viewing as tables in the above jupyter notebooks.
 
 
 ### Dependencies
@@ -55,6 +55,8 @@ MJosefson, mats.josefson@astrazeneca.com
     * Updates to handle pandas tables also as output
     * Separated jupyter notebook examples showing pandas output
     * More unit tests implemented
+* 0.1.8
+    * Update to fit changes in scikit-learn v. 1.3
 
 ## License
 

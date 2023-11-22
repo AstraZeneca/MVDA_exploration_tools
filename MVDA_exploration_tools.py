@@ -21,7 +21,7 @@ import bokeh.plotting as bplt
 from sklearn.decomposition import PCA
 from sklearn.cross_decomposition import PLSRegression
 
-__version__ = '0.1.6'
+__version__ = '0.1.8'
 
 
 def sumsq(A):
@@ -39,12 +39,12 @@ def reset_too_high_max_comp(max_comp, X):
 
 def R2(M, X, y_ref0):
     trace = False
-    if y_ref0.ndim == 1:
-        y_ref = y_ref0[:, np.newaxis]
-    else:
-        y_ref = y_ref0
-    y_pred = M.predict(X)
+    
+    y_ref = np.atleast_1d(np.squeeze(y_ref0))
+    y_pred = np.atleast_1d(np.squeeze(M.predict(X)))
+    
     if trace:
+        print()
         print('R2 X', type(X), X.shape)
         print('R2 y_ref', type(y_ref), y_ref.shape)
         print('R2 y_pred', type(y_pred), y_pred.shape)
@@ -85,24 +85,24 @@ def PLS_R2_calc(X, Y, max_comp=10, is_UV_scale=False):
 
 def Q2(CV_pred, y_ref0):
     trace = False
-    if y_ref0.ndim == 1:
-        y_ref = y_ref0[:, np.newaxis]
-    else:
-        y_ref = y_ref0
-    y_pred = CV_pred
+    
+    y_pred = np.atleast_1d(np.squeeze(CV_pred))
+    y_ref = np.atleast_1d(np.squeeze(y_ref0))
     """ Get the sum of the sum of squares from each y-variable """
     PRESS = np.sum(sumsq(y_ref - y_pred)) 
     SSY = np.sum(sumsq(y_ref - y_ref.mean(axis=0)))
     if trace:
-        print('y_ref', type(y_ref), y_ref.ndim, y_ref.shape)# , y_ref)
-        print('y_pred', type(y_pred), y_pred.ndim, y_pred.shape)#, y_pred)
-        print('y_ref.mean(axis=0)', y_ref.mean(axis=0))
-        print('y_pred.mean(axis=0)', y_pred.mean(axis=0))
-        print('PRESS', PRESS, type(PRESS))
-        print('SSY',SSY, type(SSY))
+        print()
+        print('Q2 CV_pred', type(CV_pred), CV_pred.ndim, CV_pred.shape)
+        print('Q2 y_ref', type(y_ref), y_ref.ndim, y_ref.shape)# , y_ref)
+        print('Q2 y_pred', type(y_pred), y_pred.ndim, y_pred.shape)#, y_pred)
+        print('Q2 y_ref.mean(axis=0)', y_ref.mean(axis=0))
+        print('Q2 y_pred.mean(axis=0)', y_pred.mean(axis=0))
+        print('Q2 PRESS', PRESS, type(PRESS))
+        print('Q2 SSY',SSY, type(SSY))
     Q2_calc = 1-PRESS/SSY
     if trace:
-        print('Q2_calc', Q2_calc)
+        print('Q2 Q2_calc', Q2_calc)
     return Q2_calc 
     
     
@@ -133,26 +133,28 @@ def PLS_cross_val(X, Y, max_comp=10, is_UV_scale=False, CV_sections=7, shuffle=F
 
 def evalPLS_Q2(X, Y, max_comp=10, is_UV_scale=False, 
                CV_sections=7, shuffle=False, random_state=None, 
-               is_plot=True, plt_fname='', plt_dir=''):
+               is_plot=True, plt_fname='', plt_dir='', plt_title=''):
     trace = False
     Xa = np.asarray(X, dtype=np.float64)
     Ya = np.asarray(Y, dtype=np.float64)
     max_comp = reset_too_high_max_comp(max_comp, Xa)
     R2_calc = PLS_R2_calc(Xa, Ya, max_comp=max_comp, is_UV_scale=is_UV_scale)
     if trace:
-        print('R2', R2_calc.shape)
+        print('evalPLS_Q2 R2', R2_calc.shape)
         print(R2_calc)
     Q2_calc = PLS_cross_val(Xa, Ya,max_comp=max_comp, is_UV_scale=is_UV_scale, 
                             CV_sections=CV_sections, shuffle=shuffle, 
                             random_state=random_state)
     if trace:
-        print('Q2', Q2_calc.shape)
+        print('evalPLS_Q2 Q2', Q2_calc.shape)
         print(Q2_calc)
 
     if is_plot:
         fig1 = Fig()
         fig1.R2_Q2_bars(R2_calc, Q2_calc) #, edgecolor='black')
         fig1.legend()
+        if plt_title:
+            fig1.title(plt_title)
         if plt_fname:
             fig1.save(plt_dir, plt_fname)
             
@@ -387,7 +389,7 @@ class Fig():
             self.axes[row, col].bar(v1a, v2a, **kwargs)
         else:
             self.axes[row, col].bar(range(len(v1a)), v1a, **kwargs)
-        if isinstance(v1a[0], np.str):
+        if isinstance(v1a[0], str):
             for tick in self.axes[row, col].get_xticklabels():
                 tick.set_rotation(45)
         
@@ -899,14 +901,14 @@ class PLS_model(PLSRegression):
     @property    
     def Xavg(self):
         if self.is_fitted:
-            return self.x_mean_
+            return self._x_mean
         else:
             self.not_fitted_msg()
     
     @property    
     def Xws(self):
         if self.is_fitted:
-            return self.x_std_
+            return self._x_std
         else:
             self.not_fitted_msg()
 
@@ -1174,7 +1176,7 @@ class yo_PLS_model(sklearn.base.BaseEstimator):
                 self.Y_dataframe_info['index'] = self.X_dataframe_info['index']
             
         Y_arr = np.squeeze(np.asarray(Y0))
-        assert Y_arr.ndim == 1, "This implemetation of YO-PLS only handles one Y-variable"
+        assert Y_arr.ndim == 1, "This implementation of YO-PLS only handles one Y-variable"
        
         X, self.Xavg_, self.Xws_ = self.center_scale(X0, self.is_scaled)
         Y, self.Yavg_, self.Yws_ = self.center_scale(Y_arr[:, np.newaxis], self.is_scaled)
