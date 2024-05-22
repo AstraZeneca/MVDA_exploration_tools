@@ -57,6 +57,9 @@ MJosefson, mats.josefson@astrazeneca.com
     * More unit tests implemented
 * 0.1.8
     * Update to fit changes in scikit-learn v. 1.3
+* 0.1.9
+    * Switched PCA from sklearn.decomposition.PCA to use the sklearn.decomposition.randomized_svd directly
+    * Corrected PCA and PLS modelling and model properties when variables are unit-variance scaled
 
 ## License
 

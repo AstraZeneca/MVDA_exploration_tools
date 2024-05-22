@@ -32,6 +32,18 @@ class TestMVDA_exploration_tools(unittest.TestCase):
         R2X_expected_df = pd.DataFrame(R2X_expected_arr, columns=['R2X'], index=np.arange(len(R2X_expected_arr), dtype=int)+1)
         with self.subTest(msg='PCA model R2X from dataframe'):
              self.assertTrue(np.allclose(R2X_expected_df, M1.R2X))
+             
+             
+    def test_PCA_UV_scaled_R2X_df(self):
+        X, y, test_set = self.load_data()
+        
+        M1 = mv.PCA_model(n_components=3, is_scale=True)
+        M1.fit(X)
+        
+        R2X_expected_arr = np.asarray([0.77843172, 0.94783728, 0.99947916], dtype=np.float64) 
+        R2X_expected_df = pd.DataFrame(R2X_expected_arr, columns=['R2X'], index=np.arange(len(R2X_expected_arr), dtype=int)+1)
+        with self.subTest(msg='PCA model R2X from dataframe with UV-scaled variables'):
+             self.assertTrue(np.allclose(R2X_expected_df, M1.R2X))
         
     
     def test_PCA_DModX_df(self):
@@ -40,9 +52,22 @@ class TestMVDA_exploration_tools(unittest.TestCase):
         M1 = mv.PCA_model(n_components=2)
         M1.fit(X)
 
-        DModX_test_set_expected_arr = np.asarray([3.65170754, 3.71251315], dtype=np.float64)
+        DModX_test_set_expected_arr = np.asarray([4.364625, 4.437302], dtype=np.float64)
         DModX_test_set_expected_df = pd.DataFrame(DModX_test_set_expected_arr, columns=['DModX'], index=['fm11', 'fm12'])
         with self.subTest(msg='PCA prediction DModX from dataframe'):
+            DModX_test_set = M1.DModXpred(test_set)
+            self.assertTrue(np.allclose(DModX_test_set_expected_df, DModX_test_set))
+            
+
+    def test_PCA_UV_scaled_DModX_df(self):
+        X, y, test_set = self.load_data()
+        
+        M1 = mv.PCA_model(n_components=2, is_scale=True)
+        M1.fit(X)
+
+        DModX_test_set_expected_arr = np.asarray([4.87363662, 7.32154943], dtype=np.float64)
+        DModX_test_set_expected_df = pd.DataFrame(DModX_test_set_expected_arr, columns=['DModX'], index=['fm11', 'fm12'])
+        with self.subTest(msg='PCA prediction DModX from dataframe with UV-scaled variables'):
             DModX_test_set = M1.DModXpred(test_set)
             self.assertTrue(np.allclose(DModX_test_set_expected_df, DModX_test_set))
 
@@ -53,7 +78,19 @@ class TestMVDA_exploration_tools(unittest.TestCase):
         M1 = mv.PCA_model(n_components=2, force_np_type_out=True)
         M1.fit(X)
         
-        DModX_test_set_expected_arr = np.asarray([3.65170754, 3.71251315], dtype=np.float64)
+        DModX_test_set_expected_arr = np.asarray([4.364625, 4.437302], dtype=np.float64)
+        with self.subTest(msg='PCA prediction DModX by forced np.array output'):
+            DModX_test_set = M1.DModXpred(test_set)
+            self.assertTrue(np.allclose(DModX_test_set_expected_arr, DModX_test_set))
+            
+            
+    def test_PCA_UV_scaled_DModX_forced_arr(self):
+        X, y, test_set = self.load_data()
+        
+        M1 = mv.PCA_model(n_components=2, force_np_type_out=True, is_scale=True)
+        M1.fit(X)
+        
+        DModX_test_set_expected_arr = np.asarray([4.87363662, 7.32154943], dtype=np.float64)
         with self.subTest(msg='PCA prediction DModX by forced np.array output'):
             DModX_test_set = M1.DModXpred(test_set)
             self.assertTrue(np.allclose(DModX_test_set_expected_arr, DModX_test_set))
@@ -65,7 +102,19 @@ class TestMVDA_exploration_tools(unittest.TestCase):
         M1 = mv.PCA_model(n_components=2)
         M1.fit(np.asarray(X))
         
-        DModX_test_set_expected_arr = np.asarray([3.65170754, 3.71251315], dtype=np.float64)
+        DModX_test_set_expected_arr = np.asarray([4.364625, 4.437302], dtype=np.float64)
+        with self.subTest(msg='PCA prediction DModX by forced np.array output'):
+            DModX_test_set = M1.DModXpred(np.asarray(test_set))
+            self.assertTrue(np.allclose(DModX_test_set_expected_arr, DModX_test_set))
+            
+            
+    def test_PCA_UV_scaled_DModX_input_arr(self):
+        X, y, test_set = self.load_data()
+        
+        M1 = mv.PCA_model(n_components=2, is_scale=True)
+        M1.fit(np.asarray(X))
+        
+        DModX_test_set_expected_arr = np.asarray([4.87363662, 7.32154943], dtype=np.float64)
         with self.subTest(msg='PCA prediction DModX by forced np.array output'):
             DModX_test_set = M1.DModXpred(np.asarray(test_set))
             self.assertTrue(np.allclose(DModX_test_set_expected_arr, DModX_test_set))
@@ -105,7 +154,20 @@ class TestMVDA_exploration_tools(unittest.TestCase):
         M1 = mv.PLS_model(n_components=2)
         M1.fit(X, y)
 
-        DModX_test_set_expected_arr = np.asarray([3.67359829, 3.74572741], dtype=np.float64)
+        DModX_test_set_expected_arr = np.asarray([4.390790, 4.477001], dtype=np.float64)
+        DModX_test_set_expected_df = pd.DataFrame(DModX_test_set_expected_arr, columns=['DModX'], index=['fm11', 'fm12'])
+        with self.subTest(msg='PLS prediction DModX from dataframe'):
+            DModX_test_set = M1.DModXpred(test_set)
+            self.assertTrue(np.allclose(DModX_test_set_expected_df, DModX_test_set))
+            
+            
+    def test_PLS_UV_scaled_DModX_df(self):
+        X, y, test_set = self.load_data()
+        
+        M1 = mv.PLS_model(n_components=2, scale=True)
+        M1.fit(X, y)
+
+        DModX_test_set_expected_arr = np.asarray([4.38607667, 7.65287614], dtype=np.float64)
         DModX_test_set_expected_df = pd.DataFrame(DModX_test_set_expected_arr, columns=['DModX'], index=['fm11', 'fm12'])
         with self.subTest(msg='PLS prediction DModX from dataframe'):
             DModX_test_set = M1.DModXpred(test_set)
@@ -118,7 +180,19 @@ class TestMVDA_exploration_tools(unittest.TestCase):
         M1 = mv.PLS_model(n_components=2, force_np_type_out=True)
         M1.fit(X, y)
 
-        DModX_test_set_expected_arr = np.asarray([3.67359829, 3.74572741], dtype=np.float64)
+        DModX_test_set_expected_arr = np.asarray([4.390790, 4.477001], dtype=np.float64)
+        with self.subTest(msg='PLS prediction DModX by forced np.array output'):
+            DModX_test_set = M1.DModXpred(test_set)
+            self.assertTrue(np.allclose(DModX_test_set_expected_arr, DModX_test_set))
+            
+            
+    def test_PLS_UV_scaled_DModX_forced_arr(self):
+        X, y, test_set = self.load_data()
+        
+        M1 = mv.PLS_model(n_components=2, force_np_type_out=True, scale=True)
+        M1.fit(X, y)
+
+        DModX_test_set_expected_arr = np.asarray([4.38607667, 7.65287614], dtype=np.float64)
         with self.subTest(msg='PLS prediction DModX by forced np.array output'):
             DModX_test_set = M1.DModXpred(test_set)
             self.assertTrue(np.allclose(DModX_test_set_expected_arr, DModX_test_set))
@@ -130,7 +204,19 @@ class TestMVDA_exploration_tools(unittest.TestCase):
         M1 = mv.PLS_model(n_components=2, force_np_type_out=False)
         M1.fit(np.asarray(X), np.asarray(y))
 
-        DModX_test_set_expected_arr = np.asarray([3.67359829, 3.74572741], dtype=np.float64)
+        DModX_test_set_expected_arr = np.asarray([4.390790, 4.477001], dtype=np.float64)
+        with self.subTest(msg='PLS prediction DModX from input np.array'):
+            DModX_test_set = M1.DModXpred(np.asarray(test_set))
+            self.assertTrue(np.allclose(DModX_test_set_expected_arr, DModX_test_set))
+            
+            
+    def test_PLS_UV_scaled_DModX_input_arr(self):
+        X, y, test_set = self.load_data()
+        
+        M1 = mv.PLS_model(n_components=2, force_np_type_out=False, scale=True)
+        M1.fit(np.asarray(X), np.asarray(y))
+
+        DModX_test_set_expected_arr = np.asarray([4.38607667, 7.65287614], dtype=np.float64)
         with self.subTest(msg='PLS prediction DModX from input np.array'):
             DModX_test_set = M1.DModXpred(np.asarray(test_set))
             self.assertTrue(np.allclose(DModX_test_set_expected_arr, DModX_test_set))
@@ -181,7 +267,39 @@ class TestMVDA_exploration_tools(unittest.TestCase):
             self.assertTrue(np.allclose(T_expected, M2.T))
             
         with self.subTest(msg='yo_PLS y-orthogonal scores (To)'):
-            self.assertTrue(np.allclose(To_expected, M2.To))    
+            self.assertTrue(np.allclose(To_expected, M2.To))  
+            
+            
+    def test_yo_PLS_R2X_df(self):
+        X, y, test_set = self.load_data()
+        
+        M1 = mv.yo_PLS_model(n_components=2)
+        M1.fit(X, y)
+        
+        R2X_pred_expected_arr = np.asarray([0.409975], dtype=np.float64)
+        R2X_orth_expected_arr = np.asarray([0.583718], dtype=np.float64)
+        R2X_pred_expected_df = pd.DataFrame(R2X_pred_expected_arr, columns=['R2X_pred'], index=np.arange(len(R2X_pred_expected_arr), dtype=int)+1)
+        R2X_orth_expected_df = pd.DataFrame(R2X_orth_expected_arr, columns=['R2X_orth'], index=np.arange(len(R2X_orth_expected_arr), dtype=int)+1)
+        with self.subTest(msg='yo_PLS centered only, R2X_pred from dataframe'):
+             self.assertTrue(np.allclose(R2X_pred_expected_df, M1.R2X_pred))
+        with self.subTest(msg='yo_PLS centered only, R2X_orth from dataframe'):
+             self.assertTrue(np.allclose(R2X_orth_expected_df, M1.R2X_orth))
+             
+             
+    def test_yo_PLS_UV_scaled_R2X_df(self):
+        X, y, test_set = self.load_data()
+        
+        M1 = mv.yo_PLS_model(n_components=3, scale=True)
+        M1.fit(X, y)
+        
+        R2X_pred_expected_arr = np.asarray([0.162653], dtype=np.float64)
+        R2X_orth_expected_arr = np.asarray([0.773546, 0.063281], dtype=np.float64)
+        R2X_pred_expected_df = pd.DataFrame(R2X_pred_expected_arr, columns=['R2X_pred'], index=np.arange(len(R2X_pred_expected_arr), dtype=int)+1)
+        R2X_orth_expected_df = pd.DataFrame(R2X_orth_expected_arr, columns=['R2X_orth'], index=np.arange(len(R2X_orth_expected_arr), dtype=int)+1)
+        with self.subTest(msg='yo_PLS UV-scaled, R2X_pred from dataframe'):
+             self.assertTrue(np.allclose(R2X_pred_expected_df, M1.R2X_pred))
+        with self.subTest(msg='yo_PLS UV-scaled, R2X_orth from dataframe'):
+             self.assertTrue(np.allclose(R2X_orth_expected_df, M1.R2X_orth))
             
         
         

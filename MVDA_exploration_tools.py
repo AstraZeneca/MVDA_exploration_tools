@@ -21,7 +21,7 @@ import bokeh.plotting as bplt
 from sklearn.decomposition import PCA
 from sklearn.cross_decomposition import PLSRegression
 
-__version__ = '0.1.8'
+__version__ = '0.1.9'
 
 
 def sumsq(A):
@@ -34,7 +34,7 @@ def reset_too_high_max_comp(max_comp, X):
     valid = min(X.shape[0], X.shape[1])-3   
     if max_comp > valid:
         max_comp = valid
-        print('Max number of components reduced to:', max_comp)
+        print('Max number of components reduced to:', max_comp, 'for X.shape', X.shape)
     return max_comp
 
 def R2(M, X, y_ref0):
@@ -347,8 +347,14 @@ class Fig():
             txt_offset = 1.2*np.ceil(kwargs['markersize']/2)
             pointIDs_lst = list(pointIDs)
             if pointIDs_lst:
-                for i, txt in enumerate(pointIDs_lst):
-                    self.axes[row, col].annotate(txt, (v1a[i], v2a[i]), textcoords='offset points', xytext=(txt_offset,txt_offset))
+                if txt_size < 1: # if entered pointIDs, provide some text
+                    for i, txt in enumerate(pointIDs_lst):
+                        self.axes[row, col].annotate(txt, (v1a[i], v2a[i]), textcoords='offset points', 
+                                                     xytext=(txt_offset,txt_offset))
+                else: # fontsize handling                   
+                    for i, txt in enumerate(pointIDs_lst):
+                        self.axes[row, col].annotate(txt, (v1a[i], v2a[i]), textcoords='offset points', 
+                                                     xytext=(txt_offset,txt_offset), fontsize=txt_size)
             elif (v1a.ndim == 1) and (v2a.ndim == 1) and txt_size > 0:
                 for i in range(v1a.shape[0]):
                     if np.any(np.isclose(v1a[:i], v1a[i]*np.ones_like(v1a[:i]), atol=0.1)) and np.any(np.isclose(v2a[:i], v2a[i]*np.ones_like(v2a[:i]), atol=0.1)):
@@ -377,7 +383,7 @@ class Fig():
             self.axes[row, col].plot(v1a, **kwargs)
 
             
-    def bar(self, v1, v2=np.asarray([]), v3=np.asarray([]), row=0, col=0, **kwargs):
+    def bar(self, v1, v2=np.asarray([]), v3=np.asarray([]), row=0, col=0, rotation=45, **kwargs):
         """bar only works with x as indices"""
         v1a = np.atleast_1d(np.squeeze(np.asarray(v1))) 
         v2a = np.atleast_1d(np.squeeze(np.asarray(v2)))
@@ -391,7 +397,7 @@ class Fig():
             self.axes[row, col].bar(range(len(v1a)), v1a, **kwargs)
         if isinstance(v1a[0], str):
             for tick in self.axes[row, col].get_xticklabels():
-                tick.set_rotation(45)
+                tick.set_rotation(rotation)
         
 
 
@@ -506,6 +512,29 @@ class Fig_zoom():
     
     def show(self):
         bplt.show(self.p)
+        
+
+def center_scale_x(X, center=True, scale=False):
+    """ Center X and scale if the scale parameter==True
+    Returns
+    -------
+        X, x_mean, x_std
+    """
+    # center
+    if center:
+        x_mean = X.mean(axis=0)
+        Xcs = X-x_mean
+    else:
+        Xcs = X
+        x_mean = np.zeros(Xcs.shape[1])
+    # scale
+    if scale:
+        x_std = Xcs.std(axis=0, ddof=1)
+        x_std[x_std == 0.0] = 1.0
+        Xcs /= x_std
+    else:
+        x_std = np.ones(Xcs.shape[1])
+    return Xcs, x_mean, x_std
 
 
 def PCA_by_randomizedSVD(X, components):
@@ -521,9 +550,8 @@ def PCA_by_randomizedSVD(X, components):
     return T, P, S
 
 
-class PCA_model(PCA):
+class PCA_model():
     def __init__(self, n_components=None, is_center=True, is_scale=False, force_np_type_out=False):
-        super().__init__(n_components=n_components)
         
         self.n_components = n_components
         self.is_center = is_center
@@ -531,14 +559,19 @@ class PCA_model(PCA):
         self.Xavg_ = np.asarray([])
         self.Xws_  = np.asarray([])
         self.X_model = np.asarray([])
-        self.X_wkset = np.asarray([])
         self.SSX_ = np.asarray([])
         self.is_fitted = False
         self.force_np_type_out = force_np_type_out
+        
+        
+    @property
+    def wkset_X(self):
+        model_x = self.X_model.copy()
+        return model_x
 
     
     def center_scale_x(self, X, center=True, scale=False):
-        """ Center X and scale if the scale parameter==True
+        """ Center X and scale if the parameter==True
         Returns
         -------
             X, x_mean, x_std
@@ -560,19 +593,16 @@ class PCA_model(PCA):
         return Xcs, x_mean, x_std
     
 
-    def fit(self, X0):
+    def fit(self, X):
         
-        self.X_model = X0
-        self.X_wkset, self.Xavg_, self.Xws_ = self.center_scale_x(X0, center=self.is_center, scale=self.is_scale)
+        self.X_model = X
+        X_cs, self.Xavg_, self.Xws_ = self.center_scale_x(self.wkset_X, center=self.is_center, scale=self.is_scale)
         
-        if self.force_np_type_out:
-            super().fit(np.asarray(self.X_wkset))
-        else:
-            super().fit(self.X_wkset)
+        self.U_, self.S_, self.V_ = sklearn.decomposition.randomized_svd(np.asarray(X_cs), self.n_components)
             
         self.SSX_ = np.asarray([])
         self.is_fitted = True
-        if isinstance(self.X_model, pd.core.frame.DataFrame) and not self.force_np_type_out:
+        if isinstance(self.wkset_X, pd.core.frame.DataFrame) and not self.force_np_type_out:
             self.is_return_pandas_type = True
         else:
             self.is_return_pandas_type = False
@@ -600,7 +630,7 @@ class PCA_model(PCA):
  
     @property    
     def n_latent_vars(self):
-        return self.components_.shape[0]
+        return self.n_components
        
     @property    
     def Xavg(self):
@@ -613,25 +643,22 @@ class PCA_model(PCA):
     @property    
     def T(self):
         if self.is_fitted:
-                if isinstance(self.X_wkset, np.ndarray):
-                    return self.transform(self.X_wkset)
-                elif isinstance(self.X_wkset, pd.core.frame.DataFrame) and self.force_np_type_out:
-                    return self.transform(np.asarray(self.X_wkset))
-                elif isinstance(self.X_wkset, pd.core.frame.DataFrame) and not self.force_np_type_out:
-                    return self.get_scores_and_obsIDs(self.transform(self.X_wkset), self.X_wkset)
-                else:
-                    print('Unresolved output case in T')
-        
+            model_T = self.U_*self.S_
+            if self.is_return_pandas_type:
+                return self.get_scores_and_obsIDs(model_T, self.wkset_X)
+            else:
+                return model_T
         else:
             self.not_fitted_msg()
     
     @property    
     def P(self):
         if self.is_fitted:
+            model_P = self.V_
             if self.is_return_pandas_type:
-                return self.get_model_loadings_and_varIDs(self.components_, self.X_model)
+                return self.get_model_loadings_and_varIDs(model_P, self.wkset_X)
             else:
-                return self.components_ # Loading vectors as rows
+                return model_P # Loading vectors as rows
         else:
             self.not_fitted_msg()
 
@@ -649,7 +676,7 @@ class PCA_model(PCA):
     @property    
     def SSX(self):
         if self.is_fitted:
-            if not self.SSX_.size and self.X_wkset.size:
+            if not self.SSX_.size and self.wkset_X.size:
                 self.SSX_ = self.get_model_SSX()
             return self.SSX_
         else:
@@ -669,38 +696,37 @@ class PCA_model(PCA):
         if trace:
             print( 'X_Cent_mat ',end=' ')
             print(X_Cent_mat.shape, type(X_Cent_mat))
-        X = Xin - X_Cent_mat
+        X = np.asarray(Xin) - X_Cent_mat
         X_wgt_mat = np.outer(OnesCol, Xws)
-        X = np.multiply( X, X_wgt_mat )
+        X = np.divide( X, X_wgt_mat )
         return X
    
 
     def get_model_SSX(self):
         n_components = self.n_components
         model_SSX = np.asarray([])
-        if self.X_wkset.size:
+        if self.wkset_X.size:
             model_SSX = np.zeros((n_components+1))
-            preTreated_X = self.X_wkset
-            model_SSX[0] = np.nansum(preTreated_X**2)
-            for comp in range(n_components):               
+            X_cs = self.CenterAndScale_for_prediction(self.wkset_X, self.Xws, self.Xavg)
+            model_SSX[0] = np.nansum( X_cs**2 )
+            for comp in range(n_components):
                 pca_num_comp = PCA_model(n_components=comp+1, is_center=self.is_center, is_scale=self.is_scale)
-                pca_num_comp.fit(self.X_model)
-                E = pca_num_comp.Epred(self.X_model)
+                pca_num_comp.fit(self.wkset_X)
+                E = pca_num_comp.Epred(self.wkset_X)
                 model_SSX[comp+1] = np.nansum(E**2)
-        
         return model_SSX
 
 
     def get_model_pooled_SD(self, A):
         A0 = int(self.is_center)
-        N, K = self.X_wkset.shape
+        N, K = self.wkset_X.shape
         model_degs_of_freedom = (N-A-A0)*(K-A)
         model_pooled_SD = np.sqrt(self.SSX[A]/model_degs_of_freedom)
         return model_pooled_SD
 
 
     def Obs_residual_SD(self, E, is_normalized_residual=True, n_components=-1):
-        """ Get the non-normalized observation residuals aka 'DModX'        
+        """ Get the observation residuals aka 'DModX'        
         Arguments:
         E:            full matrix of residuals from prediction
         
@@ -710,41 +736,62 @@ class PCA_model(PCA):
                                 
         n_components: the number of components to be used in the
                       calculation, a negative number gives the default
-                      number of components for the model        
+                      number of components for the model
+                      
+        Ref: doi:10.1093/bioinformatics/btm069 "pcaMethods" 
         """
         if n_components < 0:
             A = self.n_components
         else:
             A = n_components
-        non_normalised_obs_SDev = np.std(E, axis=1, ddof=A) 
+        non_normalised_obs_SDev = np.std(np.asarray(E), axis=1, ddof=A) 
         if is_normalized_residual:
+            if all(np.isclose(self.Xavg, 0.0)):
+                A0 = 0
+            else:
+                A0 = 1
+            n_model_observations = self.wkset_X.shape[0]
+            corr_factor = np.sqrt(n_model_observations / (n_model_observations - A - A0))
             model_pooled_SD = self.get_model_pooled_SD(A)
-            ObsResiduals_SD = non_normalised_obs_SDev/model_pooled_SD
+            ObsResiduals_SD = corr_factor * non_normalised_obs_SDev/model_pooled_SD
         else:
             ObsResiduals_SD = non_normalised_obs_SDev
-#        print('ObsResiduals.shape ', ObsResiduals.shape)
+
         return ObsResiduals_SD
             
 
     def Tpred(self, X_pred_set):
         if self.is_fitted:
-            X_pred_wkset = self.CenterAndScale_for_prediction(X_pred_set, self.Xws, self.Xavg)
-            if isinstance(X_pred_set, np.ndarray):
-                return self.transform(X_pred_wkset)
-            elif isinstance(X_pred_set, pd.core.frame.DataFrame) and self.force_np_type_out:
-                return self.transform(np.asarray(X_pred_wkset))
-            elif isinstance(X_pred_set, pd.core.frame.DataFrame) and not self.force_np_type_out:
-                return self.get_scores_and_obsIDs(self.transform(X_pred_wkset), X_pred_set)
+            Xpred_cs = self.CenterAndScale_for_prediction(X_pred_set, self.Xws, self.Xavg)
+            model_P = self.V_.transpose()
+            if isinstance(X_pred_set, pd.core.frame.DataFrame) and not self.force_np_type_out:
+                return self.get_scores_and_obsIDs(Xpred_cs @ model_P, X_pred_set)
             else:
-                print('Unresolved output case in Tpred')
+                return Xpred_cs @ model_P
         else:
             self.not_fitted_msg()
                         
             
     def Epred(self, X_pred_set):
+        """
+        Calculate full matrix of residuals
+
+        Parameters
+        ----------
+        X_pred_set : numpy array or pandas dataframe
+            Data for prediction
+
+        Returns
+        -------
+        numpy array or pandas dataframe
+            matrix of residuals from prediction after centering and scaling as defined by model    
+
+        """
         if self.is_fitted:
-            X_pred_wkset = self.CenterAndScale_for_prediction(X_pred_set, self.Xws, self.Xavg)
-            Epred = X_pred_wkset - self.inverse_transform(self.Tpred(X_pred_set))
+            Xpred_cs = self.CenterAndScale_for_prediction(X_pred_set, self.Xws, self.Xavg)
+            model_P = self.V_
+            tp = np.asarray(self.Tpred(X_pred_set) @ model_P)
+            Epred = np.asarray(Xpred_cs) - tp
             if isinstance(X_pred_set, pd.core.frame.DataFrame) and not self.force_np_type_out:
                 return pd.DataFrame(Epred, columns=X_pred_set.columns, index=X_pred_set.index)
             else:
@@ -754,8 +801,8 @@ class PCA_model(PCA):
 
     
     def DModXpred(self, X_pred_set, is_normalized_residual=True):
-        if self.is_fitted:            
-            E = self.Epred( X_pred_set)
+        if self.is_fitted:          
+            E = self.Epred( X_pred_set )
             Obs_resid = self.Obs_residual_SD(E, is_normalized_residual=is_normalized_residual)
             if isinstance(X_pred_set, pd.core.frame.DataFrame) and not self.force_np_type_out:
                 return pd.DataFrame(Obs_resid, columns=['DModX'], index=X_pred_set.index)
@@ -831,7 +878,7 @@ class PLS_model(PLSRegression):
                 else:
                     return pd.DataFrame(super().predict(X), index=X.index)
             else:
-                print('Unrseolved output case in predict')
+                print('Unresolved output case in predict')
         else:
             self.not_fitted_msg()
         
@@ -903,12 +950,26 @@ class PLS_model(PLSRegression):
         if self.is_fitted:
             return self._x_mean
         else:
+            self.not_fitted_msg()           
+            
+    @property    
+    def Yavg(self):
+        if self.is_fitted:
+            return self._y_mean
+        else:
             self.not_fitted_msg()
     
     @property    
     def Xws(self):
         if self.is_fitted:
             return self._x_std
+        else:
+            self.not_fitted_msg()
+            
+    @property    
+    def Yws(self):
+        if self.is_fitted:
+            return self._y_std
         else:
             self.not_fitted_msg()
 
@@ -936,7 +997,7 @@ class PLS_model(PLSRegression):
             if not self.SSX_.size and (self.wkset_X.size and self.wkset_Y.size):
                 self.SSX_, self.S2X_ = self.get_model_SSX_S2X(self.wkset_X, self.wkset_Y, 
                                                               self.n_components, 
-                                                              is_UVscaled=self.scale, 
+                                                              is_UVscaled=self.scale,
                                                               is_MeanCentered=self.is_MeanCentered)
             return self.SSX_
         else:
@@ -948,11 +1009,21 @@ class PLS_model(PLSRegression):
             if not self.S2X_.size and (self.wkset_X.size and self.wkset_Y.size):
                 self.SSX_, self.S2X_ = self.get_model_SSX_S2X(self.wkset_X, self.wkset_Y, 
                                                               self.n_components, 
-                                                              is_UVscaled=self.scale, 
+                                                              is_UVscaled=self.scale,
                                                               is_MeanCentered=self.is_MeanCentered)
             return self.S2X_
         else:
             self.not_fitted_msg()
+
+            
+    @property
+    def R2X(self):
+        if self.is_fitted:
+            R2X_arr = cumR2X_calc(self.SSX)
+            if self.is_return_X_pandas_type:
+                return pd.DataFrame(R2X_arr, columns=['R2X'], index=np.arange(len(R2X_arr), dtype=int)+1)
+            else:   
+                return R2X_arr
             
     
     
@@ -964,7 +1035,8 @@ class PLS_model(PLSRegression):
             X, Y, x_mean, y_mean, x_std, y_std
         """
         if Y.ndim == 1: # make column vector
-            Y = Y[:, np.newaxis]
+           Y = np.asarray(Y) 
+           Y = Y[:, np.newaxis]
         # center
         x_mean = X.mean(axis=0)
         X -= x_mean
@@ -982,23 +1054,50 @@ class PLS_model(PLSRegression):
             x_std = np.ones(X.shape[1])
             y_std = np.ones(Y.shape[1])
         return X, Y, x_mean, y_mean, x_std, y_std
+
+    
+    def center_and_scale_predefined(self, Xin, Xws, Xavg, Yin=np.array([]), Yws=np.array([]), Yavg=np.array([])):
+        """Combined center and UV scaling
+           when the weights (Xws), and averages (Avg) are already defined"""
+        trace = False
+        observations = Xin.shape[0]
+        OnesCol =  np.ones( (observations) )
+        X_Cent_mat = np.outer(OnesCol, Xavg)
+
+        if trace:
+            print( 'Xin ',end=' ')
+            print(Xin.shape, type(Xin))
+        if trace:
+            print( 'X_Cent_mat ',end=' ')
+            print(X_Cent_mat.shape, type(X_Cent_mat))
+        X = np.asarray(Xin) - X_Cent_mat
+        X_wgt_mat = np.outer(OnesCol, Xws)
+        X = np.divide( X, X_wgt_mat )
+        if Yin.size:
+            Y_Cent_mat = np.outer(OnesCol, Yavg)
+            Y = np.asarray(Yin) - Y_Cent_mat
+            Y_wgt_mat = np.outer(OnesCol, Yws)
+            Y = np.divide( Y, Y_wgt_mat )
+        else:
+            Y = np.array([])
+    
+        return X, Y
     
     
     def get_model_SSX_S2X(self, X_model, Y_model, n_components, is_UVscaled=False, is_MeanCentered=True):
         model_S2X = np.zeros((n_components+1))
         model_SSX = np.zeros((n_components+1))
-        preTreated_X, preTreated_Y, x_mean, y_mean, x_std, y_std = self.center_scale_xy(X_model, Y_model, is_UVscaled)
-        model_S2X[0] = np.nanvar(preTreated_X, ddof=1)
-        model_SSX[0] = np.nansum(preTreated_X**2)
+        X_sc, Y_sc = self.center_and_scale_predefined(X_model, self.Xws, self.Xavg, Y_model, self.Yws, self.Yavg)
+        model_S2X[0] = np.nanvar(X_sc, ddof=1)
+        model_SSX[0] = np.nansum(X_sc ** 2)
         A0 = int(is_MeanCentered)
         for comp in range(n_components):
             """predY, T, E = self.PLSpredict(trainingSet_X, self.Mname, selected_components= comp+1)"""
             
             pls_num_comp = PLS_model(n_components=comp+1, scale=is_UVscaled)
             pls_num_comp.fit(X_model, Y_model)
-            x_scores = pls_num_comp.transform(X_model)
-            X_reconstructed = pls_num_comp.inverse_transform(x_scores)
-            E = X_model - X_reconstructed
+            TP = np.asarray( pls_num_comp.T ) @ np.asarray( pls_num_comp.P )
+            E = X_sc - TP
                 
             model_S2X[comp+1] = np.nanvar(E, ddof=comp+1+A0)
             model_SSX[comp+1] = np.nansum(E**2)
@@ -1025,18 +1124,26 @@ class PLS_model(PLSRegression):
         n_components: the number of components to be used in the
                       calculation, a negative number gives the default
                       number of components for the model        
+        
+        Ref: doi:10.1093/bioinformatics/btm069 "pcaMethods"
         """
         if n_components < 0:
             A = self.n_components
         else:
             A = n_components
-        non_normalised_obs_SDev = np.std(E, axis=1, ddof=A) 
+        non_normalised_obs_SDev = np.std(np.asarray(E), axis=1, ddof=A) 
         if is_normalized_residual:
+            if all(np.isclose(self.Xavg, 0.0)):
+                A0 = 0
+            else:
+                A0 = 1
+            n_model_observations = self.wkset_X.shape[0]
+            corr_factor = np.sqrt(n_model_observations / (n_model_observations - A - A0))
             model_pooled_SD = self.get_model_pooled_SD(A)
-            ObsResiduals_SD = non_normalised_obs_SDev/model_pooled_SD
+            ObsResiduals_SD = corr_factor * non_normalised_obs_SDev/model_pooled_SD
         else:
             ObsResiduals_SD = non_normalised_obs_SDev
-#        print('ObsResiduals.shape ', ObsResiduals.shape)
+
         return ObsResiduals_SD
     
 
@@ -1068,7 +1175,8 @@ class PLS_model(PLSRegression):
     def Tpred(self, X_pred_set):
         if self.is_fitted:
             if isinstance(X_pred_set, np.ndarray):
-                return self.transform(X_pred_set)               
+                T_predicted = self.transform(X_pred_set) 
+                return T_predicted               
             elif isinstance(X_pred_set, pd.core.frame.DataFrame) and self.force_np_type_out:
                 return self.transform(np.asarray(X_pred_set))
             elif isinstance(X_pred_set, pd.core.frame.DataFrame) and not self.force_np_type_out:
@@ -1081,11 +1189,13 @@ class PLS_model(PLSRegression):
 
     def Epred(self, X_pred_set):
         if self.is_fitted:
-            E_predicted = X_pred_set - self.inverse_transform(self.Tpred(X_pred_set))
+            X_cs, _ = self.center_and_scale_predefined(X_pred_set, self.Xws, self.Xavg)
+            TP = np.asarray(self.Tpred(X_pred_set)) @ np.asarray(self.P)
+            E_predicted = X_cs - TP
             if isinstance(X_pred_set, np.ndarray):
                 return E_predicted
             elif isinstance(X_pred_set, pd.core.frame.DataFrame) and self.force_np_type_out:
-                return np.asarray(E_predicted.values)
+                return np.asarray(E_predicted)
             elif isinstance(X_pred_set, pd.core.frame.DataFrame) and not self.force_np_type_out:
                 return pd.DataFrame(E_predicted, columns=X_pred_set.columns, index=X_pred_set.index)
             else:
@@ -1221,6 +1331,7 @@ class yo_PLS_model(sklearn.base.BaseEstimator):
         else:
             self.not_fitted_msg()
             
+    @property
     def Yavg(self):
         if self.is_fitted:
             return self.Yavg_ 
