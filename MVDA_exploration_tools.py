@@ -21,7 +21,7 @@ import bokeh.plotting as bplt
 from sklearn.decomposition import PCA
 from sklearn.cross_decomposition import PLSRegression
 
-__version__ = '0.1.9'
+__version__ = '0.1.10'
 
 
 def sumsq(A):
@@ -535,6 +535,31 @@ def center_scale_x(X, center=True, scale=False):
     else:
         x_std = np.ones(Xcs.shape[1])
     return Xcs, x_mean, x_std
+
+
+def snv(spectra):
+    """
+    Standard Normal Variate (SNV) transformation
+    
+    This is the same as centering and UV-scaling of the transposed data matrix
+    Parameters
+    ----------
+    spectra : array like
+        Spectra on the rows of an array or pandas dataframe
+
+    Returns
+    -------
+    ndarray
+        The SNV preprocessed spectra
+
+    """
+    sp = np.asarray(spectra).transpose()
+    spectrum_means = np.mean(sp, axis=0)
+    sp_cent = sp - spectrum_means
+    sp_std = np.std(sp_cent, ddof=1, axis=0, keepdims=True)
+    sp_std[np.isclose(sp_std, 0.0)] = 1.0
+    SNV_spectra = sp_cent / sp_std
+    return SNV_spectra.transpose()
 
 
 def PCA_by_randomizedSVD(X, components):

@@ -60,6 +60,8 @@ MJosefson, mats.josefson@astrazeneca.com
 * 0.1.9
     * Switched PCA from sklearn.decomposition.PCA to use the sklearn.decomposition.randomized_svd directly
     * Corrected PCA and PLS modelling and model properties when variables are unit-variance scaled
+* 0.1.10
+    * Added snv function for use with sklearn.preprocessing.FunctionTransformer to preprocess spectra
 
 ## License
 
