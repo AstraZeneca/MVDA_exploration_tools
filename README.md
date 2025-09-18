@@ -1,6 +1,6 @@
 # MVDA_exploration_tools
 
-Multivariate data analysis (MVDA) exploration tool is a Python library utilizing the scikit-learn library for partial least squares (PLS) and principal components analysis (PCA). <br><br>
+Multivariate data analysis (MVDA) exploration tool is a Python library utilizing the scikit-learn library for partial least squares (PLS), principal components analysis (PCA), and non-negative matrix factorization (NMF). <br><br>
 Additionally, an example Jupyter notebook shows how to use the pandas library for row and column labelling prior to PCA and PLS modelling.
 
 
@@ -62,6 +62,8 @@ MJosefson, mats.josefson@astrazeneca.com
     * Corrected PCA and PLS modelling and model properties when variables are unit-variance scaled
 * 0.1.10
     * Added snv function for use with sklearn.preprocessing.FunctionTransformer to preprocess spectra
+* 0.1.11
+    * Added class for NMF modeling: NMF_model
 
 ## License
 

@@ -21,12 +21,12 @@ import bokeh.plotting as bplt
 from sklearn.decomposition import PCA
 from sklearn.cross_decomposition import PLSRegression
 
-__version__ = '0.1.10'
+__version__ = '0.1.11'
 
 
-def sumsq(A):
+def sumsq(A, axis=0):
     squares = np.asarray(A, dtype=np.float64)**2
-    return np.sum(squares, axis=0)
+    return np.sum(squares, axis=axis)
 
 def reset_too_high_max_comp(max_comp, X):
     """ Should be degrees_of_freedom(X), -1 for mean centering and -1 
@@ -159,6 +159,28 @@ def evalPLS_Q2(X, Y, max_comp=10, is_UV_scale=False,
             fig1.save(plt_dir, plt_fname)
             
     return R2_calc, Q2_calc
+
+def evalPCA_scree(X, max_comp=10, is_UV_scale=False,
+                  is_plot=True, plt_fname='', plt_dir='', plt_title=''):
+        
+        Xa = np.asarray(X, dtype=np.float64)
+        theoretical_max_comp = min(Xa.shape[0], Xa.shape[1]) - 1
+        Xcs, x_mean, x_std = center_scale_x(Xa, center=True, scale=is_UV_scale)
+        T, P, eigenvalues = PCA_by_randomizedSVD(Xcs, min(theoretical_max_comp, max_comp))
+        x_axis = np.arange(eigenvalues.shape[0])+1
+            
+        if is_plot:
+            fig1 = Fig()
+            fig1.plot(x_axis, np.log10(eigenvalues)) 
+            fig1.plot(x_axis, np.log10(eigenvalues), linestyle='None', marker='o')
+            fig1.xlabel('PCA component')
+            fig1.ylabel('log10(eigenvalues)')
+        if plt_title:
+            fig1.title(plt_title)
+        else:
+            fig1.title('Scree plot')
+        if plt_fname:
+            fig1.save(plt_dir, plt_fname)
 
 
 def mk_oneDimArray(values):
@@ -553,22 +575,23 @@ def snv(spectra):
         The SNV preprocessed spectra
 
     """
+    if spectra.ndim == 1:
+        spectra = spectra[np.newaxis, :]
     sp = np.asarray(spectra).transpose()
     spectrum_means = np.mean(sp, axis=0)
     sp_cent = sp - spectrum_means
     sp_std = np.std(sp_cent, ddof=1, axis=0, keepdims=True)
     sp_std[np.isclose(sp_std, 0.0)] = 1.0
     SNV_spectra = sp_cent / sp_std
-    return SNV_spectra.transpose()
+    return np.squeeze(SNV_spectra.transpose())
 
 
-def PCA_by_randomizedSVD(X, components):
+def PCA_by_randomizedSVD(X, components, verbose=0):
     '''A faster PCA'''
-    trace = True
     U, S, V = sklearn.decomposition.randomized_svd(X, components)        
     T = U*S
     P = V
-    if trace:
+    if verbose > 0:
         print()
         print('randomized SVD U S shapes', U.shape, S.shape )
         print('PCA T.shape', T.shape)
@@ -648,6 +671,13 @@ class PCA_model():
         loadings_df = pd.DataFrame(loadings, columns=x_model_input.columns, index=loadings_rows)
         return loadings_df
     
+    def get_model_components_table(self, eigenvalues, components_symbol='comp'):
+        eig_columns = []
+        for i in range(eigenvalues.shape[0]):
+            eig_columns.append(components_symbol+ str(i+1))
+            components_df = pd.DataFrame(eigenvalues, columns=eig_columns)
+        return components_df
+    
 
     def not_fitted_msg(self):
         print("Don't forget to fit the model before looking for model content")
@@ -673,6 +703,17 @@ class PCA_model():
                 return self.get_scores_and_obsIDs(model_T, self.wkset_X)
             else:
                 return model_T
+        else:
+            self.not_fitted_msg()
+            
+    @property    
+    def S(self):
+        if self.is_fitted:
+            model_S = self.S_
+            if self.is_return_pandas_type:
+                return self.get_model_components_table(model_S)
+            else:
+                return model_S
         else:
             self.not_fitted_msg()
     
@@ -1662,7 +1703,199 @@ class yo_PLS_model(sklearn.base.BaseEstimator):
         self.f1_p_= f1_p
         self.SSX_ = model_SSX
                             
-        return T, To, P, Po, W, Wo, C, U, E, f1_p, model_SSX           
+        return T, To, P, Po, W, Wo, C, U, E, f1_p, model_SSX 
+
+
+class NMF_model():
+
+    def __init__(self, n_components=None, max_iter=400, is_center=False, is_scale=False, verbose=True):    
+   
+        self.n_components = n_components
+        self.trace = verbose
+        self.is_center = is_center
+        self.is_scale = is_scale
+        self.Xavg_ = np.asarray([])
+        self.Xws_  = np.asarray([])
+        self.SSX_  = np.asarray([])
+        self.X_model = np.asarray([])
+        self.is_fitted = False
+        self.model = sklearn.decomposition.NMF(n_components=n_components, 
+                                               init='nndsvda',
+                                               solver='mu', 
+                                               max_iter=max_iter,
+                                               alpha_W=0.0, alpha_H='same',
+                                               verbose=bool(self.trace))
+        
+
+    def center_scale_x(self, X, center=True, scale=False):
+        """ Center X and scale if the parameter==True
+        Returns
+        -------
+            X, x_mean, x_std
+        """
+        # center
+        if center:
+            x_mean = X.mean(axis=0)
+            Xcs = X-x_mean
+        else:
+            Xcs = X
+            x_mean = np.zeros(Xcs.shape[1])
+        # scale
+        if scale:
+            x_std = Xcs.std(axis=0, ddof=1)
+            x_std[x_std == 0.0] = 1.0
+            Xcs /= x_std
+        else:
+            x_std = np.ones(Xcs.shape[1])
+        return Xcs, x_mean, x_std
+                
+
+    def fit(self, X, is_subtract_Xmin=False):
+        if self.is_center:
+            raise ValueError('NMF does not work well with centered data')
+            
+        X_s, self.Xavg_, self.Xws_ = self.center_scale_x(X, center=self.is_center, scale=self.is_scale) # Centering not used
+        if is_subtract_Xmin:
+            Xmin = np.min(X)
+            Xpos = X_s - Xmin # adjust lowest value to zero
+        else:
+            Xpos = X_s
+        if self.trace:
+            print('Fitting with',self.n_components ,'components')
+            
+        self.model.fit(Xpos)
+        self.X_model = np.asarray(Xpos, dtype=np.float64)
+        self.is_fitted = True
+        if self.trace:
+            print('Fitting was finished')
+            
+    def not_fitted_msg(self):
+        print("Don't forget to fit the model before looking for model content")
+            
+   
+    @property 
+    def T(self):
+        if self.is_fitted:
+            T = self.model.transform(self.X_model)
+            if self.trace:
+                print('transform was finished')
+            return T           
+        else:
+            self.not_fitted_msg()
+
+        
+    @property 
+    def P(self):
+        if self.is_fitted:
+            return self.model.components_
+        else:
+            self.not_fitted_msg()
+        
+    
+    @property    
+    def Xws(self):
+        if self.is_fitted:
+            return self.Xws_
+        else:
+            self.not_fitted_msg()
+
+    @property 
+    def n_iter(self):
+        if self.is_fitted:        
+            return self.model.n_iter_
+        else:
+            self.not_fitted_msg()
+    
+    @property 
+    def reconstruction_err(self):
+        if self.is_fitted:         
+            return self.model.reconstruction_err_
+        else:
+            self.not_fitted_msg()
+            
+    @property    
+    def SSX(self):
+        if self.is_fitted:
+            if not self.SSX_.size:
+                self.SSX_ = self.get_model_SSX()
+            return self.SSX_
+        else:
+            self.not_fitted_msg()
+    
+    
+    def CenterAndScale_for_prediction(self, Xin, Xws, Xavg):
+        """Combined center and UV scaling
+           when the weights (Xws), and averages (Avg) are already defined"""
+        trace = False
+        observations = Xin.shape[0]
+        OnesCol =  np.ones( (observations) )
+        X_Cent_mat = np.outer(OnesCol, Xavg)
+        if trace:
+            print( 'Xin ',end=' ')
+            print(Xin.shape, type(Xin))
+        if trace:
+            print( 'X_Cent_mat ',end=' ')
+            print(X_Cent_mat.shape, type(X_Cent_mat), 'mean', np.mean(X_Cent_mat))
+        X = np.asarray(Xin) - X_Cent_mat
+        X_wgt_mat = np.outer(OnesCol, Xws)
+        X = np.divide( X, X_wgt_mat )
+        return X
+
+    
+    def get_model_SSX(self):
+        n_components = self.n_components
+        if self.X_model.size:
+            model_SSX = np.zeros((n_components+1))
+            X_s = self.CenterAndScale_for_prediction(self.X_model, self.Xws_, self.Xavg_)
+            model_SSX[0] = np.nansum( X_s**2 )
+            for comp in range(0, n_components):
+                nmf_num_comp = NMF_model(n_components=comp+1)
+                nmf_num_comp.fit(X_s)
+                E = nmf_num_comp.Epred(self.X_model)
+                model_SSX[comp+1] = np.nansum(E**2)
+        return model_SSX
+
+    
+    def Tpred(self, X_pred_set):
+        if self.is_fitted:
+            Xpred_s = self.CenterAndScale_for_prediction(X_pred_set, self.Xws_, self.Xavg_)
+            return self.model.transform(Xpred_s)
+        else:
+            self.not_fitted_msg()
+    
+    
+    def Epred(self, X_pred_set):
+        """
+        Calculate full matrix of residuals
+
+        Parameters
+        ----------
+        X_pred_set : numpy array or pandas dataframe
+            Data for prediction
+
+        Returns
+        -------
+        numpy array or pandas dataframe
+            matrix of residuals from prediction after centering and scaling as defined by model    
+
+        """
+        if self.is_fitted:
+            Xpred_s = self.CenterAndScale_for_prediction(X_pred_set, self.Xws_, self.Xavg_)
+            model_P = self.P
+            predset_T = self.Tpred(X_pred_set)
+            tp = np.asarray(self.Tpred(X_pred_set) @ model_P)
+            if self.trace:
+                print('Xpred_s.shape', Xpred_s.shape, type(Xpred_s))
+                print('model_P.shape', model_P.shape, type(model_P))
+                print('predset_T.shape', predset_T.shape, type(predset_T))
+                print('tp.shape', tp.shape, type(tp))
+            Epred = np.asarray(Xpred_s) - tp
+            # if isinstance(X_pred_set, pd.core.frame.DataFrame) and not self.force_np_type_out:
+            #     return pd.DataFrame(Epred, columns=X_pred_set.columns, index=X_pred_set.index)
+            # else:
+            return Epred           
+        else:
+            self.not_fitted_msg()    
 
     
     
