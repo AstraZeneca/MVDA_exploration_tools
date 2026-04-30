@@ -5,7 +5,7 @@ Created on Sun Dec 26 12:48:29 2021
 
 @author: mats_j
 """
-
+import os
 import unittest
 import numpy as np
 import pandas as pd
@@ -14,7 +14,8 @@ import mvda_exploration_tools.MVDA_exploration_tools as mv
 class TestMVDA_exploration_tools(unittest.TestCase):
     
     def load_data(self):
-        dataFrame = pd.read_excel('../data/decimated_spectra.xlsx')
+        test_code_path = os.path.dirname(__file__)
+        dataFrame = pd.read_excel(os.path.join(test_code_path,'data','decimated_spectra.xlsx'))
         named_Obs_dataFrame = dataFrame.set_index('sample')
         X = named_Obs_dataFrame.loc['fm01':'fm10' , '250':'418']
         y = named_Obs_dataFrame.loc['fm01':'fm10' , ['Met']]

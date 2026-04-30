@@ -29,6 +29,6 @@ dependencies = [
 readme = "README.md"
 
 [tool.setuptools.package-data]
-ImagePipeline_pred = [
+mvda_exploration_tools = [
     "**/decimated_spectra.xlsx",  # Match zip files in test_data/
 ]
