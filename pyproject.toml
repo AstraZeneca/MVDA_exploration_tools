@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"  # Use setuptools as the build backend
 
 [project]
 name = "mvda_exploration_tools"  # Name of your package (must be unique on PyPI)
-version = "0.1.12"    # Semantic version (MAJOR.MINOR.PATCH)
+version = "0.1.13"    # Semantic version (MAJOR.MINOR.PATCH)
 authors = [
   { name = "Mats Josefson", email = "mats.josefson@astrazeneca.com" }  # Author info
 ]
@@ -30,5 +30,8 @@ readme = "README.md"
 
 [tool.setuptools.package-data]
 mvda_exploration_tools = [
-    "**/decimated_spectra.xlsx",  # Match zip files in test_data/
+    "**/decimated_spectra.xlsx",  # Match xlsx files in test_data/
 ]
+
+[project.scripts]
+MVDA_exploration = "mvda_exploration_tools.MVDA_exploration:main"

@@ -44,14 +44,20 @@ $ python -m unittest -v mvda_exploration_tools.test_MVDA_exploration_tools
 
 
 
-### Executing program
+### Executing programs
+* Without installation
+    * Download the code to a file catalog and run with jupyter lab using e.g. <br>
+    import MVDA_exploration_tools as mv
 
-* Download the code to a file catalog and run with jupyter lab
+* After installation
+    * run with jupyter lab using e.g. <br>
+    import mvda_exploration_tools.MVDA_exploration_tools as mv
+    * or start the GUI by: <br>
+    $ MVDA_exploration
 
 ## Help
 
-This is an alpha version, please use the Github issues mechanism to resolve issues. 
-
+This is a beta version, please use the Github issues mechanism to resolve issues.
 
 ## Authors
 
@@ -79,6 +85,8 @@ MJosefson, mats.josefson@astrazeneca.com
     * Added class for NMF modeling: NMF_model
 * 0.1.12
     * Added function for background correction by asymmetric least squares and class with ability to open v4 mat files
+* 0.1.13
+    * A GUI for basic modelling operations was added
 
 ## License
 

@@ -21,7 +21,7 @@ import bokeh.plotting as bplt
 
 from sklearn.cross_decomposition import PLSRegression
 
-__version__ = '0.1.12'
+__version__ = '0.1.13'
 
 
 def sumsq(A, axis=0):
