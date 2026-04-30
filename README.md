@@ -77,6 +77,8 @@ MJosefson, mats.josefson@astrazeneca.com
     * Added snv function for use with sklearn.preprocessing.FunctionTransformer to preprocess spectra
 * 0.1.11
     * Added class for NMF modeling: NMF_model
+* 0.1.12
+    * Added function for background correction by asymmetric least squares and class with ability to open v4 mat files
 
 ## License
 

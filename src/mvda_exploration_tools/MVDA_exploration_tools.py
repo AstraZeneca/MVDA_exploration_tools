@@ -7,7 +7,9 @@ Created on Fri Dec 25 11:13:32 2020
 """
 
 import os
+import struct
 import numpy as np
+import scipy
 from mpl_toolkits.mplot3d import Axes3D #Needed for 3D plotting
 import matplotlib
 import matplotlib.pyplot as plt
@@ -17,11 +19,9 @@ import sklearn.model_selection
 import bokeh.plotting as bplt
 
 
-
-from sklearn.decomposition import PCA
 from sklearn.cross_decomposition import PLSRegression
 
-__version__ = '0.1.11'
+__version__ = '0.1.12'
 
 
 def sumsq(A, axis=0):
@@ -586,6 +586,82 @@ def snv(spectra):
     return np.squeeze(SNV_spectra.transpose())
 
 
+def get_baseline(spc, lam=1e7, p=0.001, niter=50, tol=1e-6):
+    """
+    Asymmetric LSQ filter to provide the baseline of one spectrum
+    
+    Parameters
+    ----------
+        spc   : one observations to be filtered
+        lam   : the ALS lambda parameter, default=1e7
+        p     : the ALS p parameter, default=0.001
+        niter : max iterations to obtain the baseline, default=50
+        tol   : tolerance for loop exit, default=1e-6
+    
+    Returns
+    -------
+        ndarray
+            the baseline for one observation
+            
+    References
+    ----------
+        Eilers, P., A Perfect Smoother. Analytical Chemistry, 2003, 75(14), 3631-3636.
+
+        Eilers, P., et al. Baseline correction with asymmetric least squares smoothing.
+        Leiden University Medical Centre Report, 2005, [unpublished].
+        
+    """  
+    L = len(spc)
+    D = scipy.sparse.csc_matrix(np.diff(np.eye(L), 2))
+    w = np.ones(L)
+    w_previous = np.zeros(L)
+    iterations = 0
+    
+    while np.linalg.norm(w-w_previous)/np.linalg.norm(w) > tol:
+        if iterations > niter:
+            print('Max iterations', niter, 'reached')
+            break
+        else:
+            iterations += 1
+        W = scipy.sparse.spdiags(w, 0, L, L)
+        Z = W + lam * D.dot(D.transpose())
+        z = scipy.sparse.linalg.spsolve(Z, w*spc)
+        w_previous = w
+        w = p * (spc > z) + (1-p) * (spc < z)
+    return z, iterations
+
+
+def asymmetric_LSQ_filter(spectra, trace=False, **kwargs):
+    """
+    Asymmetric LSQ filter (aka Whittaker filter)
+    
+    Parameters
+    ----------
+        spectra : ndarray
+            one or more observations to be filtered
+    
+    Returns
+    -------
+        ndarray
+            one or more background corrected observations
+        
+    """
+    if trace:
+        print('Enter asymmetric_LSQ_filter')
+    if spectra.ndim == 1:
+        spectra = spectra[np.newaxis, :]
+    PreProcessed = np.ones_like(spectra)
+    for smp in range(spectra.shape[0]):
+        spectrum = np.squeeze(np.asarray(spectra[smp]))
+        baseline, iterations = get_baseline(spectrum, **kwargs)
+        if trace:
+            print('    ', smp, 'Number of iterations:', iterations)
+    
+        PreProcessed[smp] = spectrum-baseline   
+    return PreProcessed
+
+
+
 def PCA_by_randomizedSVD(X, components, verbose=0):
     '''A faster PCA'''
     U, S, V = sklearn.decomposition.randomized_svd(X, components)        
@@ -596,6 +672,90 @@ def PCA_by_randomizedSVD(X, components, verbose=0):
         print('randomized SVD U S shapes', U.shape, S.shape )
         print('PCA T.shape', T.shape)
     return T, P, S
+
+
+class Mat4_file:
+    """ Load data from a matlab/octave file version 4
+    Parameters
+    ----------
+        file_name : str
+            The input filename
+    """
+    
+    def __init__(self, file_name):
+        self.designated_file_name = file_name
+        
+
+    def is_HDF_Mat73_file(self, fileName, trace=False):
+    
+        f = open(fileName, 'rb')
+        try:
+            Filetype_ID = f.read(19)
+            data0 = struct.unpack('<ccccccccccccccccccc', Filetype_ID )
+            data = b''.join(data0)
+            is_HDF = (data == b'MATLAB 7.0 MAT-file')
+            if trace:
+                if is_HDF:
+                    print('This is a HDF_mat7.3 file')
+                else:
+                    print('Filetype_ID:', data)
+        finally:
+            f.close()
+        return is_HDF
+    
+    
+    def is_Mat4_file(self, fileName, trace=True):
+    
+        f = open(fileName, 'rb')
+        try:
+            Filetype_ID = f.read(4)
+            data0 = struct.unpack('i', Filetype_ID )        
+            is_Mat4 = (data0[0] in [0,1])
+            if trace:
+                if is_Mat4:
+                    print('This is likely a Mat4 file',data0)
+                else:
+                    print('Filetype_ID:', data0)
+        finally:
+            f.close()
+        return is_Mat4
+       
+        
+    def loadmat(self, trace=False):
+        """
+        Function to load data from a matlab/octave file version 4
+
+        Parameters
+        ----------
+        trace : boolean, optional
+            Switch on to get printouts during load. The default is False.
+
+        Returns
+        -------
+        data : dict
+            A dictionary containing the names and contents of all matrices/vectors from the mat file.
+
+        """
+        data = {}
+        if trace:
+            print('Enter loadmat' )
+    
+        if self.is_HDF_Mat73_file(self.designated_file_name, trace=trace):
+            version_selected = 'v7.3'
+        elif self.is_Mat4_file(self.designated_file_name, trace=trace):
+            version_selected = 'v4'
+            
+        if trace:
+            print('version_selected', version_selected)
+            
+        if version_selected == 'v4':
+            data = scipy.io.loadmat(self.designated_file_name)
+            for key in data.keys():
+                data[key] = np.atleast_1d(np.squeeze(np.asarray( data[key] )))                                        
+        else:
+            print("Mat file version is expected to be: 'v4'")
+            
+        return data
 
 
 class PCA_model():

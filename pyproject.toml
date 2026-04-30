@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"  # Use setuptools as the build backend
 
 [project]
 name = "mvda_exploration_tools"  # Name of your package (must be unique on PyPI)
-version = "0.1.11"    # Semantic version (MAJOR.MINOR.PATCH)
+version = "0.1.12"    # Semantic version (MAJOR.MINOR.PATCH)
 authors = [
   { name = "Mats Josefson", email = "mats.josefson@astrazeneca.com" }  # Author info
 ]
