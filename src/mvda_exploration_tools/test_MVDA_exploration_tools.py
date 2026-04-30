@@ -9,12 +9,12 @@ Created on Sun Dec 26 12:48:29 2021
 import unittest
 import numpy as np
 import pandas as pd
-import MVDA_exploration_tools as mv
+import mvda_exploration_tools.MVDA_exploration_tools as mv
 
 class TestMVDA_exploration_tools(unittest.TestCase):
     
     def load_data(self):
-        dataFrame = pd.read_excel('decimated_spectra.xlsx')
+        dataFrame = pd.read_excel('../data/decimated_spectra.xlsx')
         named_Obs_dataFrame = dataFrame.set_index('sample')
         X = named_Obs_dataFrame.loc['fm01':'fm10' , '250':'418']
         y = named_Obs_dataFrame.loc['fm01':'fm10' , ['Met']]

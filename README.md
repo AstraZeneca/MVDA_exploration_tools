@@ -37,6 +37,12 @@ $ git clone <github link>
 then:  <br>
 $ python3 -m build
 * Install wheel file by cd to the location of the whl file and install with pip
+* Import the installed module as: <br>
+`>>> import mvda_exploration_tools.MVDA_exploration_tools as mv
+* Unit tests for the installed module can be run by: <br>
+$ python -m unittest -v mvda_exploration_tools.test_MVDA_exploration_tools
+
+
 
 ### Executing program
 
