@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]  # Build-time dependencies
+build-backend = "setuptools.build_meta"  # Use setuptools as the build backend
+
+[project]
+name = "mvda_exploration_tools"  # Name of your package (must be unique on PyPI)
+version = "0.1.11"    # Semantic version (MAJOR.MINOR.PATCH)
+authors = [
+  { name = "Mats Josefson", email = "mats.josefson@astrazeneca.com" }  # Author info
+]
+
+description = "Multivariate data analysis (MVDA) exploration tool is a Python library utilizing the scikit-learn library for partial least squares (PLS) and principal components analysis (PCA)."
+requires-python = ">=3.9"  # Minimum Python version supported
+dependencies = [
+  "numpy>=2.2.6",
+  "scipy>=1.3.3",
+  "scikit-learn>=1.2.2",
+  "pandas>=1.3.5",
+  "openpyxl>=3.0.9",
+  "matplotlib>=3.8.2",
+  "bokeh>=3.1.1",
+  "jupyterlab>=4.0.0",
+  "qtpy>=2.3.0",
+  "pyqt5>=5.15.11",
+  "platformdirs",
+  "darkdetect"
+]
+
+readme = "README.md"
+

@@ -29,7 +29,14 @@ One purpose with this code is to name the output loading and score vectors consi
 
 ### Installing
 
-* No installation needed 
+* No installation needed for usage with notebooks, just download “MVDA_exploration_tools.py”<br><br>
+For installation: <br>
+* Download from github by
+$ git clone <github link>
+* Build wheel file by doing change directory (cd) to the location of the pyproject.toml file and
+then:  <br>
+$ python3 -m build
+* Install wheel file by cd to the location of the whl file and install with pip
 
 ### Executing program
 
