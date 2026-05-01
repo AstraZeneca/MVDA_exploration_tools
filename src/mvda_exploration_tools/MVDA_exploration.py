@@ -38,8 +38,8 @@ except ImportError:
 
 
 
-__version__ = '0.1.13'
-version_date = '2026-04-25'
+__version__ = '0.1.14'
+version_date = '2026-05-01'
 
 
 def get_number(string):
@@ -346,7 +346,7 @@ class Matplot_view(QtWidgets.QWidget):
             
 #            txt_offset = 1.2*np.ceil(kwargs['markersize']/2)
             txt_offset = 1.2*np.ceil(markersize/2)
-            pointIDs_lst = list(pointIDs)
+            pointIDs_lst = map(str, list(pointIDs))
             if pointIDs_lst:
                 for i, txt in enumerate(pointIDs_lst):
                     if i % decimateIDs == 0:
@@ -1041,10 +1041,19 @@ class exploration_GUI(QtWidgets.QMainWindow):
         self.model_ID_last_prediction = ''
     
         
-        self.missing_values_msg = """
-        This version of cannot handle missing values in data.
-        Please remove variables or observations with missing values")
-        """
+        self.missing_values_msg =(
+            "This version of cannot handle missing values in data."
+            " Please remove variables or observations with missing values")
+
+        self.obsIDs_treated_as_data_msg =(
+            "The first column of the input table will be used"        
+            " as observation IDs.\n" 
+            " If there are additional non-nummeric columns in"
+            " the table you have to manually adjust the" 
+            " column count of observation IDs to exclude" 
+            " non-numeric columns from the numeric part" 
+            " of the table.")
+
  
         self.OutputRepository = DataRepository()
         self.readQtSettings()
@@ -1159,7 +1168,13 @@ class exploration_GUI(QtWidgets.QMainWindow):
         self.InpDataSetsListBox.itemClicked.connect(self.OnInpDataSetsListBox_ItemClicked)
         self.InpDataSetsListBox.fileDropped.connect(self.InputFilesDropped)
         tab_vbox.addWidget(self.InpDataSetsListBox)
-
+        
+        tab_hbox_obsIDs = QtWidgets.QHBoxLayout()
+        tab_hbox_obsIDs.addWidget(QtWidgets.QLabel('# Observation ID cols'))
+        self.num_of_obsID_cols = QtWidgets.QSpinBox()
+        self.num_of_obsID_cols.setMinimum(1)
+        tab_hbox_obsIDs.addWidget(self.num_of_obsID_cols)
+        tab_vbox.addLayout(tab_hbox_obsIDs)
         
         self.varTable = QtWidgets.QTableWidget(0,3)
         
@@ -1475,7 +1490,6 @@ class exploration_GUI(QtWidgets.QMainWindow):
         
     def get_obsID_data_splitpoint(self, table_df):
         trace = False
-        obsID01_hdr = list(table_df.columns)[0]
         
         all_obsIDs = []
         for obsID in list(table_df.columns):
@@ -1485,9 +1499,12 @@ class exploration_GUI(QtWidgets.QMainWindow):
         if all_obsIDs:
             last_obsID = all_obsIDs[-1]
             last_obsID_ix = list(table_df.columns).index(last_obsID)
+        elif self.num_of_obsID_cols.value() > 1 and self.num_of_obsID_cols.value() < len(table_df.columns):
+            last_obsID_ix = self.num_of_obsID_cols.value() - 1
+            last_obsID = list(table_df.columns)[last_obsID_ix]
         else:
-            last_obsID = obsID01_hdr
             last_obsID_ix = 0
+            last_obsID = list(table_df.columns)[last_obsID_ix]
         if trace:
             print('last_obsID', last_obsID)
             print('last_obsID_ix', last_obsID_ix)
@@ -1500,11 +1517,15 @@ class exploration_GUI(QtWidgets.QMainWindow):
         last_obsID, last_obsID_ix = self.get_obsID_data_splitpoint(table_df)
         
         numVarIDs = list(table_df.columns)[last_obsID_ix+1:]
-        table_arr = np.asarray(table_df.loc[:, numVarIDs], dtype=np.float64)
-        
-        rounded_table_df = pd.DataFrame(table_arr.round(decimals), columns=numVarIDs)
-        table_out_df = pd.concat((table_df.loc[:, obsID01_hdr:last_obsID], rounded_table_df), axis=1)
-        
+#TODO Error handling
+        try:
+            table_arr = np.asarray(table_df.loc[:, numVarIDs], dtype=np.float64)            
+            rounded_table_df = pd.DataFrame(table_arr.round(decimals), columns=numVarIDs)
+            table_out_df = pd.concat((table_df.loc[:, obsID01_hdr:last_obsID], rounded_table_df), axis=1)
+        except ValueError:
+            self.showMsgBox(self.obsIDs_treated_as_data_msg)
+            table_out_df = table_df
+
         table_qt_obj.setModel(TableModel(table_data=table_out_df, num_obsIds=last_obsID_ix+1))
       
     def plot_dpi_change(self):
@@ -1549,21 +1570,24 @@ class exploration_GUI(QtWidgets.QMainWindow):
             self.remember_XY_settings(self.current_dataset, xvar_IDs, yvar_IDs)
             last_obsID, last_obsID_ix = self.get_obsID_data_splitpoint(wkset_df)
             Xin_df = wkset_df.iloc[:,last_obsID_ix+1:].loc[:, xvar_IDs] # 1st col is primary obs ID
-            Xin = np.asarray(Xin_df, dtype=np.float64)
-            D['wkset'] = Xin
-            D['legend'] = self.current_dataset
-            D['VarIDs_list'] = list(Xin_df.columns) 
-            if verbose > 1:
-                print("trainingset['VarIDs_list']", D['VarIDs_list'] )
-            D['xlabel'] = 'Variables'
-            D['ylabel'] = 'response'
-            D['ObsIDs_list'] = list( wkset_df.iloc[:,0] )
-            D['ObsIDs_list_alt'] = list( wkset_df.iloc[:,0] )
-            D['additional_obsID_names'] = []
-            D['DataSourceID'] = 'MVDA_exploration'
-            D['is_inverted_x'] = False
-            D['dataset_name'] = self.current_dataset
-            self.is_same_wkset = False
+            try:
+                Xin = np.asarray(Xin_df, dtype=np.float64)
+                D['wkset'] = Xin
+                D['legend'] = self.current_dataset
+                D['VarIDs_list'] = list(Xin_df.columns) 
+                if verbose > 1:
+                    print("trainingset['VarIDs_list']", D['VarIDs_list'] )
+                D['xlabel'] = 'Variables'
+                D['ylabel'] = 'response'
+                D['ObsIDs_list'] = list( wkset_df.iloc[:,0] )
+                D['ObsIDs_list_alt'] = list( wkset_df.iloc[:,0] )
+                D['additional_obsID_names'] = []
+                D['DataSourceID'] = 'MVDA_exploration'
+                D['is_inverted_x'] = False
+                D['dataset_name'] = self.current_dataset
+                self.is_same_wkset = False
+            except ValueError:
+                self.showMsgBox(self.obsIDs_treated_as_data_msg)
         return D
 
 
