@@ -87,6 +87,8 @@ MJosefson, mats.josefson@astrazeneca.com
     * Added function for background correction by asymmetric least squares and class with ability to open v4 mat files
 * 0.1.13
     * A GUI for basic modelling operations was added
+* 0.1.14
+    * Addition of ability to select observations in the GUI and improved error handling at data input
 
 ## License
 

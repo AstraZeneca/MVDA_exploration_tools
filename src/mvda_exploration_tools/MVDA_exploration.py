@@ -39,7 +39,7 @@ except ImportError:
 
 
 __version__ = '0.1.14'
-version_date = '2026-05-01'
+version_date = '2026-05-02'
 
 
 def get_number(string):
@@ -741,74 +741,6 @@ class Matplot_view(QtWidgets.QWidget):
                 self.scoreID_callback(self.point_lbls[pt_ix])
     
 
-    # def plot_peak_marks(self, pk_apex_ix, peak_coords):                
-    #     self.scatter_plot(self.plot_vectors['x'][pk_apex_ix], 
-    #                       self.plot_vectors['y'][pk_apex_ix],
-    #                       markeredgecolor= self.mkr_edge_color)
-        
-    #     for pk_range in peak_coords:
-    #         pk_ix = np.asarray(pk_range, dtype=np.int_)
-    #         self.scatter_plot(self.plot_vectors['x'][pk_ix], 
-    #                           self.plot_vectors['y'][pk_ix],
-    #                           markeredgecolor= self.mkr_edge_color)
-
-
-    # def peak_find(self, SG_params) -> np.ndarray:
-    #     peak_marks, peak_coords, peak_maxima_ix, peak_mid_half_height_ix = PeakCatcher.get_peaks(self.plot_vectors['y'], 
-    #                                                                                              SG_params)
-        
-    #     print('peak_find', 'peak_maxima_ix', peak_maxima_ix)
-    #     print('peak_find', 'peak_mid_half_height_ix', peak_mid_half_height_ix)
-        
-    #     # self.scatter_plot(self.plot_vectors['x'][peak_mid_half_height_ix], 
-    #     #                   self.plot_vectors['y'][peak_mid_half_height_ix],
-    #     #                   markeredgecolor= self.mkr_edge_color)
-        
-    #     # for pk_range in peak_coords:
-    #     #     pk_ix = np.asarray(pk_range, dtype=np.int_)
-    #     #     self.scatter_plot(self.plot_vectors['x'][pk_ix], 
-    #     #                       self.plot_vectors['y'][pk_ix],
-    #     #                       markeredgecolor= self.mkr_edge_color)
-    #     self.plot_peak_marks(peak_mid_half_height_ix, peak_coords)
-        
-    #     return peak_mid_half_height_ix
-    
-    
-    # def peak_tag(self, SG_params):
-    #     peak_marks, peak_coords, peak_maxima_ix, peak_mid_half_height_ix = PeakCatcher.get_peaks(self.plot_vectors['y'], 
-    #                                                                                              SG_params)        
-    #     print('peak_tag', 'peak_maxima_ix', peak_maxima_ix)
-    #     print('peak_tag', 'peak_mid_half_height_ix', peak_mid_half_height_ix)
-        
-    #     self.plot_peak_marks(peak_maxima_ix, peak_coords)
-        
-    #     peak_tags_num = np.zeros((self.plot_vectors['y'].shape[0]), dtype=np.int_)
-    #     peak_tags_one_hot = np.zeros((self.plot_vectors['y'].shape[0], 3), dtype=np.int_)
-    #     peak_tags_one_hot[:, 0] = 1 
-    #     for pk_range in peak_coords:
-    #         pk_max_ix = pk_range[0] + np.argmax(self.plot_vectors['y'][pk_range[0]:pk_range[1]])
-    #         peak_tags_num[ pk_range[0] : pk_max_ix ] = 1 #peak upslope
-    #         peak_tags_num[ pk_max_ix : pk_range[1] ] = 2 #peak downslope
-            
-    #         peak_tags_one_hot[ pk_range[0] : pk_max_ix, 0] = 0 #peak non-baseline
-    #         peak_tags_one_hot[ pk_max_ix : pk_range[1], 0] = 0 #peak non-baseline
-    #         peak_tags_one_hot[ pk_range[0] : pk_max_ix, 1] = 1 #peak upslope
-    #         peak_tags_one_hot[ pk_max_ix : pk_range[1], 2] = 1 #peak downslope
-
-    #     peak_tags = []
-    #     for ptag_ix in range(self.plot_vectors['y'].shape[0]):
-    #         if peak_tags_num[ptag_ix] == 0:
-    #              peak_tags.append('baseline')
-    #         elif peak_tags_num[ptag_ix] == 1:
-    #              peak_tags.append('upslope')
-    #         elif peak_tags_num[ptag_ix] == 2:
-    #              peak_tags.append('downslope')
-    #         else:
-    #              peak_tags.append('undefined')
-
-    # return peak_tags, peak_tags_num, peak_tags_one_hot
-                    
-
 class DropableListWidget(QtWidgets.QListWidget):
 
     fileDropped = QtCore.Signal(list)
@@ -1030,6 +962,7 @@ class exploration_GUI(QtWidgets.QMainWindow):
         self.current_files = []
         # self.clear_data()
         self.XY_settings = {}
+        self.obs_settings = {}
         
         self.model_cnt = 0
         self.model = {}
@@ -1116,6 +1049,7 @@ class exploration_GUI(QtWidgets.QMainWindow):
         main_widget.addWidget(self.tab_widget2)
         
         tab_input = QtWidgets.QWidget()
+        tab_observations = QtWidgets.QWidget()
         tab_model = QtWidgets.QWidget()
         tab_settings = QtWidgets.QWidget()
         
@@ -1127,6 +1061,7 @@ class exploration_GUI(QtWidgets.QMainWindow):
         tab_pred_results = QtWidgets.QWidget()
 
         tab_widget1.addTab(tab_input, "Input")
+        tab_widget1.addTab(tab_observations, "Observations")
         tab_widget1.addTab(tab_model, "Model")
         tab_widget1.addTab(tab_settings, "Settings")
         
@@ -1145,6 +1080,7 @@ class exploration_GUI(QtWidgets.QMainWindow):
                 self.tab_widget2_tab_selector[tab_text] = tab_widget
 
         self.build_input(tab_input)
+        self.build_observations(tab_observations)
         self.build_model(tab_model)
         self.build_settings(tab_settings)
         
@@ -1178,12 +1114,24 @@ class exploration_GUI(QtWidgets.QMainWindow):
         
         self.varTable = QtWidgets.QTableWidget(0,3)
         
-        self.columnLabels = ["X", "Y", "variable"]
-        self.varTable.setHorizontalHeaderLabels(self.columnLabels)
+        columnLabels = ["X", "Y", "variable"]
+        self.varTable.setHorizontalHeaderLabels(columnLabels)
         self.varTable.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         self.varTable.resizeColumnsToContents()
         # build03_hbox = QtWidgets.QHBoxLayout()
         tab_vbox.addWidget(self.varTable, stretch=4)
+        tab_hbox.addLayout(tab_vbox)
+        
+                
+    def build_observations(self, tab):
+        tab_hbox = QtWidgets.QHBoxLayout(tab) 
+        tab_vbox = QtWidgets.QVBoxLayout()
+        self.obsTable = QtWidgets.QTableWidget(0,2)
+        columnLabels = ["selection", "observation"]
+        self.obsTable.setHorizontalHeaderLabels(columnLabels)
+        self.obsTable.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
+        self.obsTable.resizeColumnsToContents()
+        tab_vbox.addWidget(self.obsTable, stretch=4)
         tab_hbox.addLayout(tab_vbox)
  
 
@@ -1288,11 +1236,105 @@ class exploration_GUI(QtWidgets.QMainWindow):
         current_settings['X'] = xvar_IDs
         current_settings['Y'] = yvar_IDs
         self.XY_settings[current_dataset] = current_settings
+
         
     def clear_XY_settings_for(self, dataset ):
         self.XY_settings.pop(dataset)
         
-               
+        
+    def clear_observations_table(self):    
+        self.obsTable.setRowCount(0)
+        
+
+    def set_observations_table_defaults(self, current_dataset):
+    #def set_variables_table_defaults(self, current_dataset):
+        trace = False
+        if trace:
+            print('Enter set_observations_table_defaults')
+        current_row = self.obsTable.rowCount()
+        wkset_df = self.dictionary_of_datasets[ current_dataset ]
+#        last_obsID, last_obsID_ix = self.get_obsID_data_splitpoint(wkset_df)
+
+        obsIDs = map(str, list(wkset_df.iloc[:, 0])) # 1st col is primary obs ID
+        if trace:
+            print('wkset_df.iloc[:, 0]', wkset_df.iloc[:, 0])
+            print('obsIDs', obsIDs)
+        for ID_ix, obsID in enumerate(obsIDs):
+            chkBoxItemSel = QtWidgets.QTableWidgetItem()
+            chkBoxItemSel.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
+            chkBoxItemSel.setCheckState(QtCore.Qt.Checked)
+            if trace:
+                print('    current_row ', obsID, type(obsID))
+                
+            entryName = QtWidgets.QTableWidgetItem(obsID)
+            self.obsTable.insertRow(current_row )
+            self.obsTable.setItem(current_row, 0, chkBoxItemSel)
+            self.obsTable.setItem(current_row, 1, entryName)                                    
+            current_row += 1
+        
+        
+    def update_observations_table(self, current_dataset, obs_item_settings={}):
+    #def set_variables_table_defaults(self, current_dataset):
+        trace = False
+        if trace:
+            print('Enter update_observations_table')
+        current_row = self.obsTable.rowCount()
+        wkset_df = self.dictionary_of_datasets[ current_dataset ]
+        obsIDs = map(str, list(wkset_df.iloc[:, 0])) # 1st col is primary obs ID
+        
+        if obs_item_settings:
+            if current_dataset in obs_item_settings: # Fill with previous settings
+                for ID_ix, obsID in enumerate(obsIDs):
+                    chkBoxItemSel = QtWidgets.QTableWidgetItem()
+                    chkBoxItemSel.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
+                    if obsID in obs_item_settings[current_dataset]:
+                        chkBoxItemSel.setCheckState(QtCore.Qt.Checked)
+                    else:
+                        chkBoxItemSel.setCheckState(QtCore.Qt.Unchecked)
+                    if trace:
+                        print('    current_row ', obsID)
+                    
+                    entryName = QtWidgets.QTableWidgetItem(obsID)
+                    self.obsTable.insertRow(current_row )
+                    self.obsTable.setItem(current_row, 0, chkBoxItemSel)
+                    self.obsTable.setItem(current_row, 1, entryName)                                    
+                    current_row += 1
+            else:
+                self.set_observations_table_defaults(current_dataset)
+                
+        else:
+            self.set_observations_table_defaults(current_dataset)
+                
+        self.obsTable.resizeColumnsToContents()
+        self.obsTable.resizeRowsToContents()
+        
+        
+    def get_obs_selections(self):
+        chk_sel_col = 0
+        obsID_col = 1
+        rows = self.obsTable.rowCount()
+        obs_ix = []
+        obs_IDs = []
+        for row_num in range(rows):
+            item_sel_obj = self.obsTable.item(row_num, chk_sel_col)
+            is_obs = (item_sel_obj.checkState() == QtCore.Qt.Checked)
+            obs_ID = self.obsTable.item(row_num, obsID_col).text()
+            
+            if is_obs:                
+                obs_ix.append(row_num)
+                obs_IDs.append(obs_ID)
+        return obs_IDs
+        
+        
+    def remember_obs_settings(self, current_dataset, obs_IDs):
+        current_settings = {}
+        current_settings['obs'] = obs_IDs
+        self.obs_settings[current_dataset] = current_settings
+
+        
+    def clear_obs_settings_for(self, dataset ):
+        self.obs_settings.pop(dataset)
+        
         
     def build_data_table(self, tab):
         tab_hbox = QtWidgets.QHBoxLayout(tab) 
@@ -1513,11 +1555,10 @@ class exploration_GUI(QtWidgets.QMainWindow):
         
     def update_table_contents(self, table_qt_obj, table_df, decimals=6):
         
-        obsID01_hdr = list(table_df.columns)[0]           
+        obsID01_hdr = list(table_df.columns)[0]          
         last_obsID, last_obsID_ix = self.get_obsID_data_splitpoint(table_df)
         
         numVarIDs = list(table_df.columns)[last_obsID_ix+1:]
-#TODO Error handling
         try:
             table_arr = np.asarray(table_df.loc[:, numVarIDs], dtype=np.float64)            
             rounded_table_df = pd.DataFrame(table_arr.round(decimals), columns=numVarIDs)
@@ -1527,6 +1568,7 @@ class exploration_GUI(QtWidgets.QMainWindow):
             table_out_df = table_df
 
         table_qt_obj.setModel(TableModel(table_data=table_out_df, num_obsIds=last_obsID_ix+1))
+        
       
     def plot_dpi_change(self):
         self.MPL_screen_dpi = self.plot_DPI_for_GUI.value()
@@ -1562,25 +1604,35 @@ class exploration_GUI(QtWidgets.QMainWindow):
             self.YO_PLS_components = self.num_components.value()
             
     def get_trainingset(self):
-        verbose = 1
+        verbose = 0
         D = {}
+        if verbose > 1:
+            print('Enter get_trainingset')
         if self.current_dataset:
             wkset_df = self.dictionary_of_datasets[ self.current_dataset ]
             xvar_IDs, yvar_IDs = self.get_XY_selections()
             self.remember_XY_settings(self.current_dataset, xvar_IDs, yvar_IDs)
+            obs_IDs = self.get_obs_selections()
+            self.remember_obs_settings(self.current_dataset, obs_IDs)
+            if verbose > 1:
+                print('get_trainingset obs_IDs', obs_IDs)
             last_obsID, last_obsID_ix = self.get_obsID_data_splitpoint(wkset_df)
-            Xin_df = wkset_df.iloc[:,last_obsID_ix+1:].loc[:, xvar_IDs] # 1st col is primary obs ID
+            first_obsID = list(wkset_df.columns)[0]
+            # 1st col is primary obs ID
+            Xin_df = wkset_df.iloc[:,last_obsID_ix+1:].loc[:, xvar_IDs].loc[wkset_df[first_obsID].astype(str).isin(obs_IDs)] 
             try:
                 Xin = np.asarray(Xin_df, dtype=np.float64)
                 D['wkset'] = Xin
                 D['legend'] = self.current_dataset
                 D['VarIDs_list'] = list(Xin_df.columns) 
-                if verbose > 1:
-                    print("trainingset['VarIDs_list']", D['VarIDs_list'] )
                 D['xlabel'] = 'Variables'
                 D['ylabel'] = 'response'
-                D['ObsIDs_list'] = list( wkset_df.iloc[:,0] )
-                D['ObsIDs_list_alt'] = list( wkset_df.iloc[:,0] )
+                df_sel = wkset_df.loc[wkset_df[first_obsID].astype(str).isin(obs_IDs)]
+                D['ObsIDs_list'] = list(map(str, list(df_sel[first_obsID])))
+                if verbose > 1:
+                    print("trainingset['VarIDs_list']", D['VarIDs_list'] )
+                    print("trainingset['ObsIDs_list']", D['ObsIDs_list'] )
+                D['ObsIDs_list_alt'] = D['ObsIDs_list'] 
                 D['additional_obsID_names'] = []
                 D['DataSourceID'] = 'MVDA_exploration'
                 D['is_inverted_x'] = False
@@ -1595,10 +1647,15 @@ class exploration_GUI(QtWidgets.QMainWindow):
         xvar_IDs, yvar_IDs = self.get_XY_selections()
         self.remember_XY_settings(self.current_dataset, xvar_IDs, yvar_IDs)
         if yvar_IDs:
-            print('get_Yin', yvar_IDs)
-            dataset_df = self.dictionary_of_datasets[ self.current_dataset ]
-            Yin = np.asarray(dataset_df.loc[:, yvar_IDs], dtype=np.float64)
-            print('Yin', Yin.dtype)
+            if verbose > 1:
+                print('get_Yin', yvar_IDs)
+            wkset_df = self.dictionary_of_datasets[ self.current_dataset ]
+            first_obsID = list(wkset_df.columns)[0]
+            obs_IDs = self.get_obs_selections()
+            Yin_df = wkset_df.loc[:, yvar_IDs].loc[wkset_df[first_obsID].astype(str).isin(obs_IDs)]
+            Yin = np.asarray(Yin_df, dtype=np.float64)
+            if verbose > 1:
+                print('Yin', Yin.dtype)
         else:
             Yin = np.array([])
             yvar_IDs = []
@@ -1657,7 +1714,7 @@ class exploration_GUI(QtWidgets.QMainWindow):
             
     def on_MakeModel(self):
         verbose = 1
-        if verbose > 0:
+        if verbose > 2:
             print('on_MakeModel')
         meta = {}
         model_obj = None # to not be undefined if a model is not available due to modelling limitations
@@ -1738,7 +1795,8 @@ class exploration_GUI(QtWidgets.QMainWindow):
                     elif not np.isfinite(np.asarray(Yin)).all():
                         self.showMsgBox('Please de-select Y-variables with missing values')
                     else:
-                        print('YO_PLS', Yin.shape)
+                        if verbose > 1:
+                            print('YO_PLS', Yin.shape)
                         model_obj = mv.yo_PLS_model(n_components=a, scale=is_UV_scaling)
                         model_obj.fit(Xin, Yin)
                                
@@ -1986,7 +2044,7 @@ class exploration_GUI(QtWidgets.QMainWindow):
                 if not Yin.size:
                     self.showMsgBox('Please select one or more Y-variables for PLS')
                 elif not np.all(np.isfinite(Yin)):
-                    self.showMsgBox('Y-values for PLS diagnostics were not found as there were missing of infinite values present')
+                    self.showMsgBox('Y-values for PLS diagnostics were not available as there were missing values present')
                 else:
                     is_UV_scaling = self.get_UV_scaling()
                     R2_calc, Q2_calc = mv.evalPLS_Q2(Xin, Yin, max_comp=a, is_UV_scale=is_UV_scaling, 
@@ -2150,8 +2208,17 @@ class exploration_GUI(QtWidgets.QMainWindow):
                 dataset_name = os.path.basename(os.path.splitext(filename)[0])
                 if extension == '.csv':
                     self.dictionary_of_datasets[dataset_name] = pd.read_csv(filename)
+                    
                 elif extension == '.xlsx':
-                    self.dictionary_of_datasets[dataset_name] = pd.read_excel(filename)
+                    df = pd.read_excel(filename)                   
+                    first_col_name = list(df.columns)[0]
+                    print('open_files first_col_name', first_col_name, type(first_col_name))
+                    if 'Unnamed' in first_col_name:
+                        df2 = df.rename(columns={'Unnamed: 0': 'Index'})
+                        self.dictionary_of_datasets[dataset_name] = df2
+                    else:
+                        self.dictionary_of_datasets[dataset_name] = df
+                   
                 elif extension == '.mat':
                     df = self.get_df_from_v4_matfile(filename)
                     if not df.empty:
@@ -2349,6 +2416,8 @@ class exploration_GUI(QtWidgets.QMainWindow):
 
         self.clear_variables_table()
         self.update_variables_table(self.current_dataset, XY_item_settings=self.XY_settings)
+        self.clear_observations_table()
+        self.update_observations_table(self.current_dataset, obs_item_settings=self.obs_settings)
         # The below calls have no function here, too early in the processing
         # xvar_IDs, yvar_IDs = self.get_XY_selections()
         # self.remember_XY_settings(self.current_dataset, xvar_IDs, yvar_IDs)
