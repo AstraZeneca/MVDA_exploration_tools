@@ -39,7 +39,7 @@ except ImportError:
 
 
 __version__ = '0.1.14'
-version_date = '2026-05-02'
+version_date = '2026-05-03'
 
 
 def get_number(string):
@@ -1287,7 +1287,7 @@ class exploration_GUI(QtWidgets.QMainWindow):
                 for ID_ix, obsID in enumerate(obsIDs):
                     chkBoxItemSel = QtWidgets.QTableWidgetItem()
                     chkBoxItemSel.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
-                    if obsID in obs_item_settings[current_dataset]:
+                    if obsID in obs_item_settings[current_dataset]['obs']:
                         chkBoxItemSel.setCheckState(QtCore.Qt.Checked)
                     else:
                         chkBoxItemSel.setCheckState(QtCore.Qt.Unchecked)
@@ -1608,6 +1608,7 @@ class exploration_GUI(QtWidgets.QMainWindow):
         D = {}
         if verbose > 1:
             print('Enter get_trainingset')
+            print('self.current_dataset', self.current_dataset)
         if self.current_dataset:
             wkset_df = self.dictionary_of_datasets[ self.current_dataset ]
             xvar_IDs, yvar_IDs = self.get_XY_selections()
@@ -1713,7 +1714,7 @@ class exploration_GUI(QtWidgets.QMainWindow):
 
             
     def on_MakeModel(self):
-        verbose = 1
+        verbose = 0
         if verbose > 2:
             print('on_MakeModel')
         meta = {}
@@ -1767,6 +1768,7 @@ class exploration_GUI(QtWidgets.QMainWindow):
                                     
                 meta['R2X'] = np.asarray([]) # empty R2X
                 if meta['model_type'] == 'PCA':
+                    yvar_IDs = []
                     model_obj = mv.PCA_model(n_components=a, is_scale=is_UV_scaling)
                     model_obj.fit(Xin)
                     meta['R2X'] = mv.R2X_calc(model_obj.SSX)
@@ -1824,10 +1826,16 @@ class exploration_GUI(QtWidgets.QMainWindow):
                     P, T, P_labels_prefix, T_labels_prefix = self.YO_plotting_fix(model_ID, self.model)
                                 
                     loadings = self.get_loadings_for_plot(model_ID, P, P_labels_prefix)
+
+                        
+                    if 'Y_VarIDs' in self.model[model_ID]['meta']:
+                        yvar_IDs_txt = ', y='+str(self.model[model_ID]['meta']['Y_VarIDs'])
+                    else:
+                        yvar_IDs_txt =''
                     
                     #TODO: For loadings the plot_title content is overridden inside the plotting object, fix this to allow extra title info input
                     self.loadings_plot.set_scatter_plot_input(loadings,
-                                                              plot_title=model_ID+' '+meta['model_type']+', loadings, scaling:'+var_scaling_info,
+                                                              plot_title=model_ID+' '+meta['model_type']+', loadings, scaling:'+var_scaling_info+yvar_IDs_txt,
                                                               # label_prefix=P_labels_prefix,
                                                               pointIDs=meta['var_IDs'],
                                                               # alt_pointIDs=meta['obs_IDs_alt'],
@@ -1836,7 +1844,7 @@ class exploration_GUI(QtWidgets.QMainWindow):
                     if verbose > 0:
                         print('T', T.shape, type(T) )            
                     self.scores_plot.set_scatter_plot_input(T, 
-                                                            plot_title=model_ID+' '+meta['model_type']+' scores, scaling:'+var_scaling_info, 
+                                                            plot_title=model_ID+' '+meta['model_type']+' scores, scaling:'+var_scaling_info+yvar_IDs_txt, 
                                                             label_prefix=T_labels_prefix, 
                                                             pointIDs=meta['obs_IDs'],
                                                             alt_pointIDs=meta['obs_IDs_alt'],
@@ -1865,7 +1873,7 @@ class exploration_GUI(QtWidgets.QMainWindow):
         def prepend_t(n):
             return 't '+str(n).zfill(2)
         
-        verbose = 1
+        verbose = 0
         if verbose > 0:
             print('on_MakePrediction')
         if self.ModelsListBox.count() <= 0:
@@ -1898,6 +1906,12 @@ class exploration_GUI(QtWidgets.QMainWindow):
                     except ValueError as e:
                         error_msg = str(e)
                         self.showMsgBox(error_msg)
+                elif M['meta']['model_type'] == 'YO_PLS':
+                    yo_PLS_pred_msg =('Predictions for YO_PLS models are not implemented in MVDA_exploration. '
+                                     'Please make a PLS model with the same settings and use this for predictions. '
+                                     '\n\nAn YO_PLS model would have the same prediction as a PLS model')
+                    self.showMsgBox(yo_PLS_pred_msg)
+                    
                 else: #PLS            
                     try:
                         Y_predicted = M['model_obj'].predict(Xpred)
@@ -1966,10 +1980,14 @@ class exploration_GUI(QtWidgets.QMainWindow):
             print('P', P.shape )
             
         var_scaling_info = self.model[model_ID]['meta']['var_scaling']
+        if 'Y_VarIDs' in self.model[model_ID]['meta']:
+            yvar_IDs_txt = ', y='+str(self.model[model_ID]['meta']['Y_VarIDs'])
+        else:
+            yvar_IDs_txt =''
             
         #TODO: For loadings the plot_title content is overridden inside the plotting object, fix this to allow extra title info input
         self.loadings_plot.set_scatter_plot_input(loadings,
-                                                  plot_title=model_ID+' '+self.model[model_ID]['meta']['model_type']+', loadings, scaling: '+var_scaling_info,
+                                                  plot_title=model_ID+' '+self.model[model_ID]['meta']['model_type']+', loadings, scaling: '+var_scaling_info+yvar_IDs_txt,
                                                   label_prefix=P_labels_prefix,
                                                   pointIDs=self.model[model_ID]['meta']['var_IDs'],
                                                   # alt_pointIDs=meta['obs_IDs_alt'],
@@ -1979,7 +1997,7 @@ class exploration_GUI(QtWidgets.QMainWindow):
             print('T', T.shape )
         
         self.scores_plot.set_scatter_plot_input(T,
-                                                plot_title=model_ID+' '+self.model[model_ID]['meta']['model_type']+' scores, scaling: '+var_scaling_info, 
+                                                plot_title=model_ID+' '+self.model[model_ID]['meta']['model_type']+' scores, scaling: '+var_scaling_info+yvar_IDs_txt, 
                                                 label_prefix= T_labels_prefix, 
                                                 pointIDs= self.model[model_ID]['meta']['obs_IDs'],
                                                 alt_pointIDs= self.model[model_ID]['meta']['obs_IDs_alt'],
@@ -2201,8 +2219,10 @@ class exploration_GUI(QtWidgets.QMainWindow):
 
         
     def open_files(self, filenames, extension='.csv'):
-        print('extension', extension)
-        print(filenames)
+        verbose = 0
+        if verbose > 1:
+            print('extension', extension)
+            print(filenames)
         if filenames:
             for filename in filenames:
                 dataset_name = os.path.basename(os.path.splitext(filename)[0])
@@ -2212,7 +2232,8 @@ class exploration_GUI(QtWidgets.QMainWindow):
                 elif extension == '.xlsx':
                     df = pd.read_excel(filename)                   
                     first_col_name = list(df.columns)[0]
-                    print('open_files first_col_name', first_col_name, type(first_col_name))
+                    if verbose > 1:
+                        print('open_files first_col_name', first_col_name, type(first_col_name))
                     if 'Unnamed' in first_col_name:
                         df2 = df.rename(columns={'Unnamed: 0': 'Index'})
                         self.dictionary_of_datasets[dataset_name] = df2
@@ -2279,7 +2300,7 @@ class exploration_GUI(QtWidgets.QMainWindow):
         
         
     def on_OpenModels(self):
-        verbose = 1
+        verbose = 0
         caption = 'Open models'
         old_path = self.previous_models_location
         filter_mask = "All files (*.*);;Python pickled models (*.pkl)"
@@ -2350,7 +2371,7 @@ class exploration_GUI(QtWidgets.QMainWindow):
         
         
     def closeEvent(self, event):
-        trace = True
+        trace = False
         if trace:
             print('Enter  closeEvent')
         settings = QtCore.QSettings("PyQT_settings", "MVDA_exploration")
