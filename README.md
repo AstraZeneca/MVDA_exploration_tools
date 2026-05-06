@@ -6,6 +6,8 @@ Additionally, an example Jupyter notebook shows how to use the pandas library fo
 
 ## Description
 One purpose with this code is to name the output loading and score vectors consistent with chemometrics publications and also provide a tools to facilitate plotting of graphs, numbered scatter plots and bar plots based on matplotlib. Another purpose is to deliver a basic example of how to use pandas to keep consistent IDs of rows and columns from the input table(s) to the output results.
+
+
 ### Files
 - "PCA_and_PLS_by_pandas_12.ipynb" A jupyter notebook that contains an example run using the pandas library for row and column labelling prior to PCA and PLS modelling.
 
@@ -17,30 +19,31 @@ One purpose with this code is to name the output loading and score vectors consi
 
 - "MVDA_exploration_tools.py" A python module containing classes based on scikit-learn that provides traditional chemometrics naming conventions for scores and loading vectors from PCA and PLS modelling.  A class named Fig based on matplotlib is also present to plot modelling results.
 
+- "MVDA_exploration.py" A GUI for basic modelling operations calling the MVDA_exploration_tools module for modelling
+
 - "data/original_spectra.xlsx" contains spectra in the ultra-violett range 250-450 nm with 2 spectral components varied in an experimental design together with concentration values for the training data for optimal modelling with few observations.
 
 - "data/decimated_spectra.xlsx" is the same spectra heavily decimated on the spectral axis in order to facilitate viewing as tables in the above jupyter notebooks.
 
 
 ### Dependencies
-
-* Pandas, and scikit-learn
-* Have been tried in Kubuntu 22.04 with Python 3.10 and Windows 10 with Python 3.8 and 3.9, a requirements.txt file exists for the Python 3.10 case.
+* Pandas, and scikit-learn. A full list of requirements is kept in the pyproject.toml file
+* Has been developed and tried in Kubuntu 24.04 with Python 3.12. Also tried in Windows 11 with Python 3.13.
 
 ### Installing
-
 * No installation needed for usage with notebooks, just download “MVDA_exploration_tools.py”<br><br>
-For installation: <br>
-* Download from github by
-$ git clone <github link>
-* Build wheel file by doing change directory (cd) to the location of the pyproject.toml file and
+* For installation:
+    * Download from github by
+    $ git clone <github link>
+    * Build wheel file by doing change directory (cd) to the location of the pyproject.toml file and
 then:  <br>
-$ python3 -m build
-* Install wheel file by cd to the location of the whl file and install with pip
-* Import the installed module as: <br>
-`>>> import mvda_exploration_tools.MVDA_exploration_tools as mv
-* Unit tests for the installed module can be run by: <br>
-$ python -m unittest -v mvda_exploration_tools.test_MVDA_exploration_tools
+    $ python3 -m build <br>
+    * Install wheel file by cd to the location of the whl file (e.g. mvda_exploration_tools-0.1.14-py3-none-any.whl) and install with pip <br>
+    $ pip install mvda_exploration_tools-0.1.14-py3-none-any.whl  <br>
+    * Import the installed module as: <br>
+    `>>> import mvda_exploration_tools.MVDA_exploration_tools as mv  <br>
+    * Unit tests for the installed module can be run by: <br>
+    $ python -m unittest -v mvda_exploration_tools.test_MVDA_exploration_tools
 
 
 
@@ -50,7 +53,7 @@ $ python -m unittest -v mvda_exploration_tools.test_MVDA_exploration_tools
     import MVDA_exploration_tools as mv
 
 * After installation
-    * run with jupyter lab using e.g. <br>
+    * Run with jupyter lab using e.g. <br>
     import mvda_exploration_tools.MVDA_exploration_tools as mv
     * or start the GUI by: <br>
     $ MVDA_exploration
